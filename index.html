@@ -1,0 +1,1878 @@
+<!DOCTYPE html>
+<!--
+  [오름] 국어 · 성적 추이 리포트
+  의존성 없는 단일 HTML 파일. 이 파일 하나만 있으면 동작합니다.
+
+  ■ 처음 열면 들어 있는 것
+    시험 회차 틀(1·2·3차고사)과 상담 코멘트 프리셋만 들어 있습니다.
+    학생 명단과 성적은 **일부러 넣지 않았습니다** — 이 파일은 공개 주소에 올라가므로
+    학생 실명·점수·코멘트가 소스에 박혀 있으면 누구나 볼 수 있기 때문입니다.
+    선생님 자료는 백업 파일(.json)로 따로 보관하고, 설정 탭에서 불러와 쓰세요.
+    한 번 불러오면 그 브라우저에 남으므로 매번 할 필요는 없습니다.
+
+  ■ 쓰는 법
+    1) 크롬·엣지 같은 일반 브라우저로 이 파일을 엽니다.
+       (파일을 그냥 더블클릭해도 되지만, 환경에 따라 브라우저가 저장을 막는 경우가 있습니다.
+        그때는 설정 탭 맨 위에 경고가 뜹니다 — 그런 경우 아래 GitHub Pages 쪽을 쓰세요.)
+    2) 학생 · 회차 탭에서 명단과 시험 회차를 만들고 → 성적 입력 탭에서 점수를 넣습니다.
+    3) 개인 리포트 탭에서 학생을 고르고 인쇄하면 A4 1장으로 나갑니다.
+
+  ■ GitHub Pages 배포
+    이 grade 폴더를 저장소에 올리고 Settings → Pages 에서 브랜치를 지정하면
+    https://<아이디>.github.io/<저장소>/grade/ 로 열립니다.
+    (기존 go1 / 한글맞춤법퀴즈 와 같은 방식입니다.)
+
+  ■ 저장과 백업
+    성적은 그 브라우저의 localStorage 에만 쌓입니다. 서버로 가지 않습니다.
+    다른 기기에서는 보이지 않고, 브라우저 기록을 지우면 사라집니다.
+    → 설정 · 백업 탭에서 주기적으로 .json 백업 파일을 내려받으세요. 복원도 그 파일로 합니다.
+    → 구글 시트에 사본을 쌓고 싶으면 설정 탭의 Apps Script 코드를 쓰되,
+       반드시 **새로 만든 빈 스프레드시트**에 붙이세요.
+
+  ■ 원본 폼 응답 시트 (읽기 전용 — 이 도구는 절대 쓰지 않습니다)
+    시험 응답 시트와 심층 오답 분석 시트를 구조 파악용으로만 읽었습니다.
+    주소와 ID 는 공개 저장소에 올라가면 안 되므로 여기 적지 않습니다 — 드라이브에서 찾아 쓰세요.
+    옮겨 담을 때는 시트에서 범위를 복사해 성적 입력 탭의 "붙여넣기로 가져오기" 를 쓰세요.
+    "88.2점", "3등급(65.2점)", "79.8...? 정도" 처럼 적혀 있어도 숫자만 알아서 뽑아냅니다.
+-->
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>[오름] 국어 · 성적 추이 리포트</title>
+<style>
+:root{
+  --bg:#f5f6f3; --panel:#ffffff; --line:#e2e5df; --line-soft:#f0f2ee;
+  --ink:#1f2420; --ink-mid:#5e6660; --ink-soft:#8d948e;
+  --green:#2d4f3c; --green-deep:#163022; --green-mid:#4a7a5e; --green-pale:#dfe9e2;
+  --gold:#b8973f; --gold-deep:#8f7028; --gold-pale:#f3ecd9;
+  --up:#2f7d53; --down:#c0493c; --flat:#8d948e;
+  --danger:#c0493c; --ok:#2f7d53;
+  --radius:14px;
+  --shadow:0 1px 2px rgba(22,48,34,.05), 0 6px 20px rgba(22,48,34,.06);
+  --paper:#ffffff; --paper-ink:#1f2420; --paper-line:#dfe3dd; --paper-soft:#6b726c;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#141815; --panel:#1c211e; --line:#2e352f; --line-soft:#232925;
+    --ink:#eef1ec; --ink-mid:#aab3ab; --ink-soft:#7c847d;
+    --green:#5f9a78; --green-deep:#8fc0a5; --green-mid:#4a7a5e; --green-pale:#26342c;
+    --gold:#d1b766; --gold-deep:#e3d29a; --gold-pale:#332d1b;
+    --up:#5fbd86; --down:#e38279; --flat:#7c847d;
+    --danger:#e38279; --ok:#5fbd86;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
+    --paper:#1c211e; --paper-ink:#eef1ec; --paper-line:#2e352f; --paper-soft:#8d948e;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#141815; --panel:#1c211e; --line:#2e352f; --line-soft:#232925;
+  --ink:#eef1ec; --ink-mid:#aab3ab; --ink-soft:#7c847d;
+  --green:#5f9a78; --green-deep:#8fc0a5; --green-mid:#4a7a5e; --green-pale:#26342c;
+  --gold:#d1b766; --gold-deep:#e3d29a; --gold-pale:#332d1b;
+  --up:#5fbd86; --down:#e38279; --flat:#7c847d;
+  --danger:#e38279; --ok:#5fbd86;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
+  --paper:#1c211e; --paper-ink:#eef1ec; --paper-line:#2e352f; --paper-soft:#8d948e;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+  -webkit-text-size-adjust:100%; line-height:1.55; word-break:keep-all;
+}
+.wrap{max-width:1120px; margin:0 auto; padding:22px 16px 90px}
+
+header.top{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:16px}
+header.top h1{font-size:19px; margin:0; letter-spacing:-.02em; display:flex; align-items:center; gap:8px}
+header.top h1 em{font-style:normal; color:var(--gold)}
+header.top .sub{color:var(--ink-soft); font-size:12.5px; margin-left:auto; text-align:right}
+
+nav.tabs{display:flex; gap:4px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:4px; margin-bottom:18px; overflow-x:auto}
+nav.tabs button{
+  flex:1 0 auto; border:0; background:transparent; color:var(--ink-mid); cursor:pointer;
+  padding:9px 14px; border-radius:9px; font-size:14px; font-weight:600; white-space:nowrap;
+  font-family:inherit; transition:.15s;
+}
+nav.tabs button:hover{color:var(--ink); background:var(--line-soft)}
+nav.tabs button[aria-selected="true"]{background:var(--green); color:#fff}
+
+.card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:18px 20px; box-shadow:var(--shadow); margin-bottom:16px}
+.card h2{font-size:15px; margin:0 0 3px; letter-spacing:-.01em; display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+.card h2 .tag{font-size:11px; font-weight:700; background:var(--gold-pale); color:var(--gold-deep); padding:2px 8px; border-radius:999px}
+.card .hint{color:var(--ink-soft); font-size:12.5px; margin:0 0 14px; line-height:1.6}
+.card h2+.hint{margin-top:3px}
+
+button.btn{
+  border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer;
+  padding:8px 15px; border-radius:9px; font-size:13.5px; font-weight:600; font-family:inherit; transition:.15s;
+}
+button.btn:hover{border-color:var(--green); color:var(--green)}
+button.btn.primary{background:var(--green); border-color:var(--green); color:#fff}
+button.btn.primary:hover{background:var(--green-deep); border-color:var(--green-deep); color:#fff}
+button.btn.gold{background:var(--gold); border-color:var(--gold); color:#fff}
+button.btn.gold:hover{background:var(--gold-deep); border-color:var(--gold-deep); color:#fff}
+button.btn.ghost{border-color:transparent; color:var(--ink-soft); padding:6px 10px}
+button.btn.ghost:hover{background:var(--line-soft); color:var(--ink)}
+button.btn.danger:hover{border-color:var(--danger); color:var(--danger)}
+button.btn:disabled{opacity:.45; cursor:not-allowed}
+button.btn.sm{padding:5px 11px; font-size:12.5px}
+.row{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+.spacer{flex:1 1 auto}
+
+select,input[type=text],input[type=number],input[type=date],textarea{
+  font-family:inherit; font-size:14px; padding:7px 10px; border:1px solid var(--line);
+  border-radius:8px; background:var(--panel); color:var(--ink); max-width:100%;
+}
+textarea{width:100%; resize:vertical; line-height:1.6}
+select:focus,input:focus,textarea:focus{outline:2px solid var(--green); outline-offset:-1px; border-color:var(--green)}
+.field{margin-bottom:12px}
+.field>span{display:block; font-size:12.5px; font-weight:600; margin-bottom:4px}
+.field .d{color:var(--ink-soft); font-size:12px; font-weight:400; margin-top:4px}
+.grid2{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px}
+.grid3{display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px}
+
+table{width:100%; border-collapse:collapse; font-size:13.5px}
+th,td{text-align:left; padding:8px 9px; border-bottom:1px solid var(--line-soft)}
+th{font-size:11.5px; color:var(--ink-soft); font-weight:700; white-space:nowrap}
+td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
+td.mid,th.mid{text-align:center}
+tbody tr:hover{background:var(--line-soft)}
+.tablewrap{overflow-x:auto}
+
+.stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(118px,1fr)); gap:10px; margin:14px 0}
+.stat{background:var(--line-soft); border-radius:11px; padding:11px 13px}
+.stat .n{font-size:21px; font-weight:800; letter-spacing:-.02em; font-variant-numeric:tabular-nums}
+.stat .l{font-size:11.5px; color:var(--ink-soft); margin-top:1px}
+.stat .n small{font-size:12px; font-weight:700; color:var(--ink-soft)}
+.up{color:var(--up)} .down{color:var(--down)} .flat{color:var(--flat)}
+
+.empty{text-align:center; color:var(--ink-soft); font-size:13.5px; padding:34px 16px; line-height:1.7}
+.empty .big{font-size:30px; display:block; margin-bottom:8px; opacity:.6}
+
+#toast{
+  position:fixed; left:50%; bottom:26px; transform:translate(-50%,16px); opacity:0;
+  background:var(--green-deep); color:#fff; padding:11px 18px; border-radius:10px; font-size:13.5px;
+  font-weight:600; box-shadow:0 8px 28px rgba(0,0,0,.25); pointer-events:none; transition:.25s; z-index:900;
+  max-width:88vw; text-align:center;
+}
+:root[data-theme="dark"] #toast{color:#10231a}
+#toast.show{transform:translate(-50%,0); opacity:1}
+
+dialog{
+  border:1px solid var(--line); border-radius:var(--radius); background:var(--panel); color:var(--ink);
+  padding:20px; max-width:min(600px,94vw); width:100%; box-shadow:0 20px 60px rgba(0,0,0,.3);
+  max-height:88vh; overflow:auto;
+}
+dialog::backdrop{background:rgba(15,25,20,.45)}
+dialog h3{margin:0 0 4px; font-size:16px}
+dialog .hint{color:var(--ink-soft); font-size:12.5px; margin:0 0 14px; line-height:1.6}
+
+.pill{display:inline-block; font-size:11.5px; font-weight:700; padding:2px 8px; border-radius:999px; background:var(--line-soft); color:var(--ink-mid)}
+.pill.g{background:var(--green-pale); color:var(--green)}
+.pill.y{background:var(--gold-pale); color:var(--gold-deep)}
+
+.warnbox{
+  background:var(--gold-pale); border:1px solid var(--gold);
+  border-radius:12px; padding:12px 15px; font-size:13px; line-height:1.65; margin-bottom:16px;
+}
+.warnbox b{color:var(--gold-deep)}
+
+.sheet{
+  background:var(--paper); color:var(--paper-ink);
+  width:210mm; max-width:100%; margin:0 auto 20px;
+  padding:13mm 12mm; box-shadow:0 2px 10px rgba(0,0,0,.12); border:1px solid var(--line);
+  border-radius:4px;
+}
+.rp-head{display:flex; align-items:flex-end; gap:12px; border-bottom:2.5px solid var(--green-deep); padding-bottom:9px; margin-bottom:12px}
+.rp-head .brand{font-size:17px; font-weight:800; letter-spacing:-.02em; color:var(--green-deep)}
+.rp-head .brand em{font-style:normal; color:var(--gold-deep)}
+.rp-head .ttl{font-size:12.5px; color:var(--paper-soft)}
+.rp-head .when{margin-left:auto; font-size:11px; color:var(--paper-soft); text-align:right; line-height:1.5}
+.rp-who{display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; margin-bottom:9px}
+.rp-who .nm{font-size:23px; font-weight:800; letter-spacing:-.02em}
+.rp-who .meta{font-size:12.5px; color:var(--paper-soft)}
+.rp-sec{margin-bottom:8px; break-inside:avoid; page-break-inside:avoid}
+.rp-sec>h3{
+  font-size:11.5px; font-weight:800; letter-spacing:.02em; color:var(--green-deep);
+  border-left:3px solid var(--gold); padding-left:7px; margin:0 0 7px;
+}
+.rp-kpis{display:grid; grid-template-columns:repeat(5,1fr); gap:7px}
+.rp-kpi{border:1px solid var(--paper-line); border-radius:8px; padding:6px 8px; text-align:center}
+.rp-kpi .l{font-size:9.5px; color:var(--paper-soft); margin-bottom:2px}
+.rp-kpi .n{font-size:17px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.02em; line-height:1.25}
+.rp-kpi .n small{font-size:10.5px; font-weight:700}
+.rp-2col{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+.rp-box{border:1px solid var(--paper-line); border-radius:8px; padding:8px 10px}
+.rp-box>h4{font-size:10.5px; margin:0 0 5px; color:var(--paper-soft); font-weight:700}
+.sheet table{font-size:11px}
+.sheet th,.sheet td{padding:4px 5px; border-bottom:1px solid var(--paper-line)}
+.sheet th{color:var(--paper-soft); font-size:10px; background:var(--line-soft)}
+.sheet tbody tr:hover{background:transparent}
+.rp-note{
+  border:1px solid var(--paper-line); border-radius:8px; padding:8px 10px; font-size:11.5px; line-height:1.75;
+  white-space:pre-wrap; min-height:30px;
+}
+.rp-note.blank{color:var(--paper-soft); font-style:italic}
+.rp-foot{margin-top:12px; padding-top:7px; border-top:1px solid var(--paper-line); font-size:10px; color:var(--paper-soft); display:flex; gap:10px}
+.rp-foot .sign{margin-left:auto}
+.rp-cmt{display:grid; grid-template-columns:repeat(3,1fr); gap:8px}
+.rp-cmt .rp-box{font-size:11px; line-height:1.7}
+.rp-cmt .rp-box p{margin:0; white-space:pre-wrap}
+
+#printHint{display:none; font-size:13px; color:#444; padding:20px}
+svg.chart{display:block; width:100%; height:auto; overflow:visible}
+.legend{display:flex; gap:11px; flex-wrap:wrap; font-size:10px; color:var(--paper-soft); margin-top:2px}
+.legend i{display:inline-block; width:15px; height:0; border-top:2px solid currentColor; vertical-align:middle; margin-right:4px}
+.legend .k{display:inline-flex; align-items:center}
+
+.entry th:first-child,.entry td:first-child{position:sticky; left:0; background:var(--panel); z-index:1}
+.entry tbody tr:hover td:first-child{background:var(--line-soft)}
+.entry input{width:74px; padding:5px 7px; font-size:13px; text-align:right; font-variant-numeric:tabular-nums}
+.entry input.wide{width:108px; text-align:left}
+.entry td{padding:5px 6px}
+.entry .saved{outline:2px solid var(--ok); outline-offset:-1px}
+
+.chips{display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; max-height:104px; overflow-y:auto; padding-right:2px}
+.chips button{
+  border:1px solid var(--line); background:var(--panel); color:var(--ink-mid); cursor:pointer;
+  font-family:inherit; font-size:12px; padding:4px 9px; border-radius:999px; text-align:left; line-height:1.4;
+}
+.chips button:hover{border-color:var(--green); color:var(--green)}
+
+@media (max-width:720px){
+  .wrap{padding:16px 11px 80px}
+  .rp-kpis{grid-template-columns:repeat(2,1fr)}
+  .rp-2col,.rp-cmt{grid-template-columns:1fr}
+  .sheet{width:100%; padding:15px 13px}
+  .rp-who .nm{font-size:20px}
+  header.top .sub{margin-left:0; text-align:left; width:100%}
+  .card{padding:15px 14px}
+}
+
+@media print{
+  @page{size:A4 portrait; margin:10mm}
+  html,body{background:#fff !important}
+  body{font-size:12px}
+  .noprint,nav.tabs,header.top,#toast,dialog{display:none !important}
+  .wrap{max-width:none; padding:0; margin:0}
+  /* 리포트 탭이 아닐 때 Ctrl+P 를 누르면 빈 종이 대신 안내가 나오게 */
+  .wrap:has(#pane-report[hidden]) #printHint{display:block}
+  .sheet{
+    width:auto; max-width:none; margin:0; padding:0;
+    box-shadow:none; border:0; border-radius:0;
+    --paper:#fff; --paper-ink:#000; --paper-line:#b9bfb8; --paper-soft:#4a504b;
+    --green-deep:#163022; --green:#2d4f3c; --gold:#8f7028; --gold-deep:#8f7028;
+    --line-soft:#f2f4f1; --up:#1d6b41; --down:#a93b2f; --flat:#6b726c;
+    background:#fff; color:#000;
+  }
+  .sheet th{background:#f2f4f1 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact}
+  .rp-sec,.rp-box,table,tr{break-inside:avoid; page-break-inside:avoid}
+  svg{max-width:100%}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1><em>[오름]</em> 국어 · 성적 추이 리포트</h1>
+  <div class="sub" id="headSub"></div>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button role="tab" id="tab-entry" aria-selected="true" data-pane="entry">성적 입력</button>
+  <button role="tab" id="tab-report" aria-selected="false" data-pane="report">개인 리포트</button>
+  <button role="tab" id="tab-class" aria-selected="false" data-pane="class">반 전체</button>
+  <button role="tab" id="tab-manage" aria-selected="false" data-pane="manage">학생 · 회차</button>
+  <button role="tab" id="tab-config" aria-selected="false" data-pane="config">설정 · 백업</button>
+</nav>
+
+<!-- ───────── 성적 입력 ───────── -->
+<section id="pane-entry">
+  <div class="card">
+    <h2>회차별 성적 입력</h2>
+    <p class="hint">회차를 고르고 표에 바로 적으면 칸을 벗어날 때 자동 저장됩니다. 영역별 점수·석차는 <b>상세</b>에서 넣습니다.</p>
+    <div class="row">
+      <select id="entryExam" style="min-width:230px"></select>
+      <select id="entryGrade"><option value="">학년 전체</option></select>
+      <select id="entrySchool"><option value="">학교 전체</option></select>
+      <span class="spacer"></span>
+      <button class="btn sm" id="btnEntryPaste">붙여넣기로 가져오기</button>
+    </div>
+    <div id="entryMeta" class="hint" style="margin:12px 0 0"></div>
+  </div>
+  <div class="card">
+    <div class="tablewrap"><table class="entry"><thead id="entryHead"></thead><tbody id="entryBody"></tbody></table></div>
+    <div id="entryEmpty"></div>
+  </div>
+</section>
+
+<!-- ───────── 개인 리포트 ───────── -->
+<section id="pane-report" hidden>
+  <div class="card noprint">
+    <h2>개인 리포트</h2>
+    <p class="hint">학부모 상담용 A4 1장입니다. <b>인쇄</b>를 누르면 아래 리포트만 종이로 나갑니다.</p>
+    <div class="row">
+      <select id="repStudent" style="min-width:200px"></select>
+      <select id="repType" title="내신과 모의고사는 점수의 성격이 달라 따로 볼 수 있습니다">
+        <option value="">내신 + 모의고사</option>
+        <option value="naesin">내신만</option>
+        <option value="mock">모의고사만</option>
+      </select>
+      <label class="row" style="gap:5px; font-size:13px"><input type="checkbox" id="repShowClass" checked> 반 평균 함께 보기</label>
+      <label class="row" style="gap:5px; font-size:13px"><input type="checkbox" id="repShowArea" checked> 영역별 보기</label>
+      <span class="spacer"></span>
+      <button class="btn" id="btnRepComment">상담 코멘트 쓰기</button>
+      <button class="btn primary" id="btnPrint">인쇄 / PDF</button>
+    </div>
+  </div>
+  <div id="repOut"></div>
+</section>
+
+<!-- ───────── 반 전체 ───────── -->
+<section id="pane-class" hidden>
+  <div class="card">
+    <h2>반 전체 비교 · 분포</h2>
+    <p class="hint">한 회차의 분포와 회차별 평균 흐름을 함께 봅니다. 표의 이름을 누르면 그 학생 리포트로 넘어갑니다.</p>
+    <div class="row">
+      <select id="clsExam" style="min-width:230px"></select>
+      <select id="clsGrade"><option value="">학년 전체</option></select>
+      <select id="clsSchool"><option value="">학교 전체</option></select>
+    </div>
+  </div>
+  <div id="clsOut"></div>
+</section>
+
+<!-- ───────── 학생 · 회차 관리 ───────── -->
+<section id="pane-manage" hidden>
+  <div class="card">
+    <h2>회차</h2>
+    <p class="hint">내신은 점수·석차 중심, 모의고사는 등급·백분위 중심으로 리포트가 바뀝니다.</p>
+    <div class="row">
+      <input type="text" id="newExamName" placeholder="회차 이름 (예: 2025 1학기 기말)" style="min-width:230px">
+      <select id="newExamType"><option value="naesin">내신</option><option value="mock">모의고사</option></select>
+      <input type="date" id="newExamDate">
+      <button class="btn primary" id="btnAddExam">회차 추가</button>
+    </div>
+    <div class="tablewrap" style="margin-top:14px"><table><thead><tr>
+      <th>회차</th><th>종류</th><th>날짜</th><th class="num">만점</th><th class="num">입력된 학생</th><th></th>
+    </tr></thead><tbody id="examBody"></tbody></table></div>
+    <div id="examEmpty"></div>
+  </div>
+  <div class="card">
+    <h2>학생 명단</h2>
+    <div class="row">
+      <input type="text" id="newStName" placeholder="이름" style="width:110px">
+      <input type="text" id="newStSchool" placeholder="학교 (예: 군포고)" style="width:150px">
+      <select id="newStGrade"><option>고1</option><option>고2</option><option>고3</option><option>중3</option></select>
+      <input type="text" id="newStClass" placeholder="반 (선택)" style="width:110px">
+      <button class="btn primary" id="btnAddStudent">학생 추가</button>
+      <span class="spacer"></span>
+      <button class="btn sm" id="btnPasteStudents">명단 붙여넣기</button>
+    </div>
+    <div class="tablewrap" style="margin-top:14px"><table><thead><tr>
+      <th>이름</th><th>학교</th><th>학년</th><th>반</th><th>담당</th><th class="num">기록</th><th></th>
+    </tr></thead><tbody id="stBody"></tbody></table></div>
+    <div id="stEmpty"></div>
+  </div>
+</section>
+
+<!-- ───────── 설정 · 백업 ───────── -->
+<section id="pane-config" hidden>
+  <div class="warnbox" id="storageWarn" hidden></div>
+  <div class="card">
+    <h2>백업 <span class="tag">꼭 쓰세요</span></h2>
+    <p class="hint">성적은 이 브라우저 안에만 저장됩니다. 브라우저 기록을 지우거나 다른 기기에서 열면 보이지 않습니다.
+      <b>주기적으로 파일로 내려받아</b> 두세요. 내려받은 파일로 언제든 그대로 되살릴 수 있습니다.</p>
+    <div class="row">
+      <button class="btn primary" id="btnBackup">백업 파일 내려받기 (.json)</button>
+      <button class="btn" id="btnRestore">백업 파일에서 복원</button>
+      <button class="btn" id="btnCsv">엑셀용 CSV 내려받기</button>
+      <input type="file" id="restoreFile" accept=".json,application/json" hidden>
+    </div>
+    <p class="hint" id="backupInfo" style="margin:12px 0 0"></p>
+  </div>
+
+  <div class="card">
+    <h2>회차 틀 · 코멘트 프리셋 불러오기</h2>
+    <p class="hint">
+      이 파일에는 <b>시험 회차 틀과 상담 코멘트 프리셋만</b> 들어 있습니다.
+      학생 명단과 성적은 공개 주소에 올라가지 않도록 일부러 빼 두었으니,
+      위의 <b>백업 파일에서 복원</b>으로 불러오세요.
+      아래 단추는 회차나 프리셋을 실수로 지웠을 때 되살리는 용도입니다.
+      <b>이미 있는 것은 덮어쓰지 않습니다.</b>
+    </p>
+    <div class="row"><button class="btn" id="btnSeed">회차 틀 · 프리셋 되살리기</button></div>
+    <p class="hint" id="seedInfo" style="margin:12px 0 0"></p>
+  </div>
+
+  <div class="card">
+    <h2>영역 기본값</h2>
+    <p class="hint">회차를 새로 만들 때 쓰이는 영역과 배점입니다. 회차별로 다르게 하려면 <b>학생 · 회차</b>에서 그 회차를 고쳐 주세요.</p>
+    <div class="grid2">
+      <div class="field"><span>내신 영역</span>
+        <input type="text" id="cfgAreaNaesin" placeholder="독서:25, 문학:25, 문법:25, 화작·매체:25">
+        <div class="d">이름:배점 형태로 쉼표로 구분</div></div>
+      <div class="field"><span>모의고사 영역</span>
+        <input type="text" id="cfgAreaMock" placeholder="독서:38, 문학:38, 선택과목:24">
+        <div class="d">비워 두면 영역별 입력을 쓰지 않습니다</div></div>
+    </div>
+    <div class="field"><span>학원 이름 (리포트 머리글)</span><input type="text" id="cfgAcademy" style="width:240px"></div>
+    <div class="field"><span>리포트 맺음말</span><input type="text" id="cfgSign" style="width:100%" placeholder="예: [오름] 국어 · 담당 예담T"></div>
+    <div class="row"><button class="btn primary" id="btnSaveCfg">설정 저장</button></div>
+  </div>
+
+  <div class="card">
+    <h2>상담 코멘트 프리셋</h2>
+    <p class="hint">리포트 코멘트를 쓸 때 한 번에 넣을 문구입니다. 한 줄에 하나씩 적으세요.</p>
+    <div class="grid3">
+      <div class="field"><span>강점</span><textarea id="cfgPreStrong" rows="6"></textarea></div>
+      <div class="field"><span>문제점</span><textarea id="cfgPreWeak" rows="6"></textarea></div>
+      <div class="field"><span>개선 · 방학</span><textarea id="cfgPrePlan" rows="6"></textarea></div>
+    </div>
+    <div class="row"><button class="btn primary" id="btnSavePresets">프리셋 저장</button></div>
+  </div>
+
+  <div class="card">
+    <h2>구글 시트로 복사 보관 <span class="tag">선택</span></h2>
+    <p class="hint">
+      브라우저 저장소가 1차이고 시트는 사본입니다. <b>원래 쓰시던 폼 응답 시트 두 개는 절대 쓰지 마세요</b> —
+      아래에는 이 도구 전용으로 <b>새로 만든 빈 스프레드시트</b>의 웹앱 주소만 넣습니다.
+      배포 방법은 아래 Apps Script 코드 위 주석에 적어 두었습니다.
+    </p>
+    <div class="grid2">
+      <div class="field"><span>웹앱 URL</span><input type="text" id="cfgSheetUrl" placeholder="https://script.google.com/macros/s/.../exec"></div>
+      <div class="field"><span>쓰기 키</span><input type="text" id="cfgSheetKey" placeholder="Apps Script 에 적어 둔 것과 같은 값"></div>
+    </div>
+    <div class="row">
+      <button class="btn primary" id="btnSaveSheet">주소 저장</button>
+      <button class="btn" id="btnSyncUp">시트로 올리기</button>
+      <button class="btn" id="btnCopyGs">Apps Script 코드 복사</button>
+    </div>
+    <p class="hint" id="syncInfo" style="margin:12px 0 0"></p>
+  </div>
+
+  <div class="card">
+    <h2>화면</h2>
+    <div class="row">
+      <button class="btn sm" data-theme-set="">기기 설정 따라가기</button>
+      <button class="btn sm" data-theme-set="light">밝게</button>
+      <button class="btn sm" data-theme-set="dark">어둡게</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>전체 지우기</h2>
+    <p class="hint">되돌릴 수 없습니다. 먼저 백업 파일을 내려받아 두세요.</p>
+    <div class="row"><button class="btn danger" id="btnWipe">저장된 성적 전부 지우기</button></div>
+  </div>
+</section>
+
+<p id="printHint">인쇄할 내용이 없습니다. <b>개인 리포트</b> 탭에서 학생을 고른 뒤 인쇄해 주세요.</p>
+</div>
+
+<div id="toast"></div>
+
+<!-- 상세 입력 -->
+<dialog id="dlgDetail">
+  <h3 id="ddTitle">상세 입력</h3>
+  <p class="hint" id="ddSub"></p>
+  <div class="grid3">
+    <div class="field"><span>원점수</span><input type="number" step="0.1" id="ddRaw"></div>
+    <div class="field"><span>반/학교 평균</span><input type="number" step="0.1" id="ddAvg"></div>
+    <div class="field"><span>등급 (1~9)</span><input type="number" step="1" min="1" max="9" id="ddGrade"></div>
+    <div class="field"><span>백분위</span><input type="number" step="0.1" id="ddPct"></div>
+    <div class="field"><span>석차</span><input type="number" step="1" id="ddRank"></div>
+    <div class="field"><span>전체 인원</span><input type="number" step="1" id="ddTotal"></div>
+  </div>
+  <div id="ddAreas"></div>
+  <div class="field"><span>이 회차 메모</span><textarea id="ddMemo" rows="2" placeholder="시간 부족 / 서술형 감점 등"></textarea></div>
+  <div class="row">
+    <button class="btn primary" id="ddSave">저장</button>
+    <button class="btn" id="ddClose">닫기</button>
+    <span class="spacer"></span>
+    <button class="btn danger sm" id="ddDel">이 회차 기록 삭제</button>
+  </div>
+</dialog>
+
+<!-- 상담 코멘트 -->
+<dialog id="dlgComment">
+  <h3>상담 코멘트</h3>
+  <p class="hint" id="dcWho"></p>
+  <div id="dcInternalBox" hidden style="margin:0 0 14px">
+    <div style="font-size:12.5px; font-weight:600; margin-bottom:4px">
+      시트에 적어 두신 메모 <span class="pill y">인쇄 안 됨</span>
+    </div>
+    <div id="dcInternal" style="border:1px solid var(--line); border-radius:9px; padding:9px 11px;
+      font-size:12.5px; line-height:1.7; white-space:pre-wrap; max-height:130px; overflow:auto;
+      background:var(--line-soft); color:var(--ink-mid)"></div>
+    <p class="hint" style="margin:5px 0 0">심층 오답 분석 시트의 <b>직접코멘트</b>입니다. 참고용이라 리포트에는 나가지 않습니다.</p>
+  </div>
+  <div class="field"><span>강점</span><textarea id="dcStrong" rows="2"></textarea><div class="chips" id="dcChipStrong"></div></div>
+  <div class="field"><span>문제점</span><textarea id="dcWeak" rows="2"></textarea><div class="chips" id="dcChipWeak"></div></div>
+  <div class="field"><span>개선 · 방학 계획</span><textarea id="dcPlan" rows="2"></textarea><div class="chips" id="dcChipPlan"></div></div>
+  <div class="field"><span>담임 소견 (자유)</span><textarea id="dcFree" rows="3"></textarea></div>
+  <div class="row"><button class="btn primary" id="dcSave">저장</button><button class="btn" id="dcClose">닫기</button></div>
+</dialog>
+
+<!-- 붙여넣기 가져오기 -->
+<dialog id="dlgPaste">
+  <h3 id="dpTitle">붙여넣기로 가져오기</h3>
+  <p class="hint" id="dpHint"></p>
+  <textarea id="dpText" rows="8" placeholder="구글 시트에서 범위를 복사해 그대로 붙여넣으세요"></textarea>
+  <div class="row" style="margin-top:10px">
+    <label class="row" style="gap:5px; font-size:13px"><input type="checkbox" id="dpHeader" checked> 첫 줄은 제목 줄</label>
+    <span class="spacer"></span>
+    <button class="btn" id="dpRead">읽어 들이기</button>
+  </div>
+  <div id="dpMap" style="margin-top:14px"></div>
+  <div class="row" style="margin-top:12px">
+    <button class="btn primary" id="dpApply" disabled>가져오기</button>
+    <button class="btn" id="dpClose">닫기</button>
+  </div>
+</dialog>
+
+<!-- Apps Script 코드 -->
+<dialog id="dlgGs">
+  <h3>Apps Script 코드</h3>
+  <p class="hint">새 스프레드시트에서 <b>확장 프로그램 → Apps Script</b> 를 열고 아래를 통째로 붙여넣으세요. 맨 위 주석에 배포 순서가 있습니다.</p>
+  <textarea id="gsCode" rows="12" readonly style="font-family:ui-monospace,Consolas,monospace; font-size:12px"></textarea>
+  <div class="row" style="margin-top:10px"><button class="btn primary" id="gsCopy">복사</button><button class="btn" id="gsClose">닫기</button></div>
+</dialog>
+
+<script>
+"use strict";
+const $  = (s,r)=> (r||document).querySelector(s);
+const $$ = (s,r)=> Array.from((r||document).querySelectorAll(s));
+const KEY = 'oreum-grade-v1';
+const THEME_KEY = 'oreum-grade-theme';
+
+/* ───────── 초기 데이터 ─────────
+   공개 저장소에 올라가는 파일이라 학생 자료는 담지 않습니다.
+   여기 있는 것은 개인정보가 아닌 두 가지뿐입니다.
+     - exams   : 시험 회차 틀 (2026 1·2·3차고사)
+     - presets : 상담 코멘트 프리셋 (원본 시트의 `설정` 탭에서 가져온 문구 16종씩)
+
+   ■ 학생 명단과 성적을 넣는 방법
+     설정 · 백업 탭 → "백업 파일에서 복원" 에서 .json 백업 파일을 고르면 됩니다.
+     쓰시는 기기마다 한 번씩만 하면 그 브라우저에 계속 남습니다.
+     백업 파일은 선생님 컴퓨터에만 두시고 이 저장소에는 절대 올리지 마세요
+     (.gitignore 에 *.json 을 넣어 두었습니다).
+
+   ■ 성적을 넣은 뒤에는
+     설정 · 백업 탭에서 주기적으로 백업 파일을 내려받아 두세요.
+     브라우저 저장소가 1차이고, 그 파일이 유일한 사본입니다. */
+const SEED = {"students":[],"exams":[{"id":"R1","name":"2026 1차고사 (1학기 중간)","type":"naesin","date":"2026-04-28","full":100,"areas":[],"seq":0},{"id":"R2","name":"2026 2차고사 (1학기 기말)","type":"naesin","date":"2026-06-30","full":100,"areas":[],"seq":1},{"id":"R3","name":"2026 3차고사 (2학기 중간)","type":"naesin","date":"2026-10-05","full":100,"areas":[],"seq":2}],"scores":{},"comments":{},"presets":{"strong":["문학 작품 해석과 내용 일치 문제를 안정적으로 풀어냅니다.","지문을 끝까지 차분히 읽고 핵심을 잘 잡아냅니다.","문법(언어) 개념이 탄탄해 관련 문제에서 강점을 보입니다.","독서(비문학) 지문의 정보 정리와 추론을 잘 해냅니다.","배운 내용을 성실히 복습해와 수업 흡수력이 좋습니다.","어려운 문제에도 끝까지 도전하는 끈기가 보입니다.","화법과 작문 영역에서 실수 없이 안정적으로 득점합니다.","매체 자료의 정보를 정확하게 해석해 냅니다.","시간 배분이 안정적이어서 마지막 문항까지 끝까지 풀어냅니다.","선지의 근거를 지문에서 확인하며 푸는 좋은 습관이 있습니다.","어휘력이 풍부해 낯선 지문도 빠르게 이해합니다.","오답을 성실히 분석하며 같은 실수를 줄여 나갑니다.","처음 보는 유형에도 당황하지 않고 침착하게 접근합니다.","자신의 약점을 정확히 파악하고 학습 방향을 스스로 잡습니다.","출석과 과제 수행이 꾸준해 학습 리듬이 안정적입니다.","질문을 적극적으로 하며 능동적으로 수업에 참여합니다."],"weak":["문법(언어) 개념이 흔들려 아는 문제에서도 실수가 나옵니다.","지문을 급하게 읽어 세부 정보에서 답을 놓치는 경우가 있습니다.","문학 작품의 주제·정서 파악이 아직 부정확할 때가 있습니다.","독서(비문학) 지문의 긴 정보를 끝까지 정리하는 힘이 부족합니다.","선지의 미묘한 차이를 끝까지 따지지 못해 함정 선지에 걸립니다.","오답의 근거를 지문에서 확인하지 않고 '느낌'으로 고치는 습관이 있습니다.","시간 관리가 안 되어 뒷부분 문제를 놓치는 경우가 있습니다.","개념이 완전히 자리 잡지 않아 응용·변형 문제에서 막힙니다.","어휘력이 부족해 지문 이해 속도가 더딘 편입니다.","화법과 작문·매체 영역에서 잔실수로 점수를 흘립니다.","복습이 충분치 않아 배운 내용이 시험까지 남지 않습니다.","아는 문제를 틀리는 실수성 실점이 잦습니다.","긴 지문에서 집중력이 떨어져 후반부 정확도가 낮아집니다.","한 문제에 지나치게 오래 매달려 전체 시간이 부족해집니다.","처음 보는 유형에 당황해 평소 실력을 다 발휘하지 못합니다.","오답 정리를 미루는 습관이 있어 약점이 반복됩니다."],"plan":["틀린 유형을 기준으로 약점 단원부터 집중 보강하는 것이 가장 효과적입니다.","문법(언어)을 처음부터 다시 정리하면 실수성 실점을 크게 줄일 수 있습니다.","매일 독서(비문학) 한 지문씩 시간을 재고 푸는 훈련을 권합니다.","문학 작품 분석 노트를 만들어 주제·정서·표현을 정리해 두면 좋습니다.","오답할 때 반드시 지문에서 근거를 찾아 적는 습관을 들이는 것이 핵심입니다.","방학 동안 학습 습관과 복습 루틴을 잡는 것을 1순위로 권합니다.","실전처럼 시간 배분을 연습해 마지막 문항까지 푸는 훈련이 필요합니다.","지금의 학습 흐름을 방학에도 끊지 않고 이어가는 것이 중요합니다.","기출·변형 문제를 반복하며 자주 나오는 유형을 몸에 익혀야 합니다.","어휘와 배경지식을 매일 조금씩 누적하면 독해 속도가 빨라집니다.","화법과 작문·매체 기출을 풀며 잔실수를 줄이는 연습이 필요합니다.","틀린 문제를 다시 풀고 답의 근거를 말로 설명하는 연습을 권합니다.","개념 강의를 다시 들으며 빈틈을 메우는 작업이 먼저 필요합니다.","주기적으로 모의고사를 풀어 실전 감각을 유지하는 것이 좋습니다.","풀이 과정을 글로 남겨 자신의 사고 흐름을 점검하도록 지도하겠습니다.","목표 등급을 기준으로 주간 학습량을 정해 꾸준히 관리하는 것이 좋습니다."]}};
+
+/* ───────── 뒤늦은 정정 ─────────
+   importSeed 는 이미 들어 있는 점수를 덮어쓰지 않습니다. 그래서 SEED 를 고치기 전에
+   이 페이지를 이미 열어 본 브라우저에는 옛 값이 남습니다. 아래는 그런 칸만 집어서 바로잡는 목록입니다.
+   저장된 값이 아직 "옛 값 그대로"일 때만 바꾸므로, 선생님이 직접 고쳐 둔 칸은 건드리지 않습니다.
+   한 번 적용하면 fixesVersion 이 올라가 다시 적용되지 않습니다. */
+const FIXES_VERSION = 1;
+const SEED_FIXES = [];
+function applyFixes(){
+  if((S.fixesVersion||0) >= FIXES_VERSION) return 0;
+  let n = 0;
+  SEED_FIXES.forEach(f=>{
+    const st = S.students.find(x=> x.name===f.name && x.school===f.school);
+    const ex = S.exams.find(x=> x.name===f.exam);
+    if(!st || !ex) return;
+    const cur = scoreOf(st.id, ex.id);
+    if(!cur || num(cur.raw)===null) return;
+    if(Math.abs(num(cur.raw) - f.from) > 0.05) return;   // 이미 다른 값이면 그대로 둔다
+    setScore(st.id, ex.id, {raw:f.to, memo:'오답분석 시트 값'});
+    n++;
+  });
+  S.fixesVersion = FIXES_VERSION;
+  save();
+  return n;
+}
+
+/** SEED 를 현재 자료에 합친다. 이미 있는 학생·회차·점수·코멘트는 절대 덮어쓰지 않는다. */
+function importSeed(){
+  const r = {students:0, exams:0, scores:0, comments:0, skipped:0};
+  const examMap = {};
+  SEED.exams.forEach(se=>{
+    let e = S.exams.find(x=> x.name===se.name);
+    if(!e){ e = Object.assign({}, se, {id:uid(), seq:S.exams.length}); S.exams.push(e); r.exams++; }
+    examMap[se.id] = e.id;
+  });
+  SEED.students.forEach(ss=>{
+    let st = S.students.find(x=> x.name===ss.name && x.school===ss.school && x.grade===ss.grade);
+    if(!st){ st = Object.assign({}, ss, {id:uid()}); S.students.push(st); r.students++; }
+
+    const src = SEED.scores[ss.id] || {};
+    Object.keys(src).forEach(seid=>{
+      const eid = examMap[seid];
+      if(scoreOf(st.id, eid)){ r.skipped++; return; }   // 이미 적어 둔 점수는 그대로 둔다
+      setScore(st.id, eid, src[seid]);
+      r.scores++;
+    });
+
+    const sc = SEED.comments[ss.id];
+    if(sc){
+      const cur = S.comments[st.id] || {};
+      const next = Object.assign({}, cur);
+      let touched = false;
+      ['strong','weak','plan','internal'].forEach(f=>{
+        if(sc[f] && !cur[f]){ next[f] = sc[f]; touched = true; }
+      });
+      if(touched){ S.comments[st.id] = next; r.comments++; }
+    }
+  });
+
+  // 코멘트 프리셋은 선생님이 직접 고친 적이 없을 때만 시트 값으로 맞춘다
+  if(!S.presetsEdited && SEED.presets){
+    ['strong','weak','plan'].forEach(k=>{ if(SEED.presets[k] && SEED.presets[k].length) S.presets[k] = SEED.presets[k].slice(); });
+  }
+  save();
+  return r;
+}
+
+/* ───────── 상태 ───────── */
+const DEFAULTS = {
+  v:1,
+  students:[],              // {id,name,school,grade,klass,teacher}
+  exams:[],                 // {id,name,type,date,full,areas:[{name,full}]}
+  scores:{},                // scores[studentId][examId] = {raw,avg,grade,pct,rank,total,areas:{},memo}
+  comments:{},              // comments[studentId] = {strong,weak,plan,free,at}
+  config:{
+    academy:'[오름] 국어',
+    sign:'[오름] 국어 · 담당 예담T',
+    areaNaesin:'독서:25, 문학:25, 문법:25, 화작·매체:25',
+    areaMock:'독서:38, 문학:38, 선택과목:24',
+    sheetUrl:'', sheetKey:''
+  },
+  presets:{
+    strong:['문학 작품 해석과 내용 일치 문제를 안정적으로 풀어냅니다.',
+            '지문을 끝까지 차분히 읽고 핵심을 잘 잡아냅니다.',
+            '오답 정리를 성실히 해 같은 유형을 두 번 틀리지 않습니다.',
+            '어려운 회차에서도 점수가 크게 흔들리지 않습니다.'],
+    weak:  ['문법(언어) 개념이 흔들려 아는 문제에서도 실수가 나옵니다.',
+            '지문을 급하게 읽어 세부 정보에서 답을 놓치는 경우가 있습니다.',
+            '시간 배분이 어긋나 뒷부분 문항을 충분히 보지 못합니다.',
+            '외부 지문(처음 보는 지문) 대응력이 아직 부족합니다.'],
+    plan:  ['틀린 유형을 기준으로 약점 단원부터 집중 보강하는 것이 가장 효과적입니다.',
+            '문법(언어)을 처음부터 다시 정리하면 실수성 실점을 크게 줄일 수 있습니다.',
+            '방학 동안 기출 독서 지문을 주 3회 시간 재며 푸는 훈련을 권합니다.',
+            '서술형 답안을 문장 단위로 쓰는 연습을 병행하면 좋겠습니다.']
+  },
+  lastSync:null,
+  lastBackup:null
+};
+
+let S = structuredClone(DEFAULTS);
+let storageOk = true;
+
+function load(){
+  try{
+    const raw = localStorage.getItem(KEY);
+    if(raw){
+      const d = JSON.parse(raw);
+      S = Object.assign(structuredClone(DEFAULTS), d);
+      S.config  = Object.assign(structuredClone(DEFAULTS.config), d.config||{});
+      S.presets = Object.assign(structuredClone(DEFAULTS.presets), d.presets||{});
+      S.scores  = d.scores||{}; S.comments = d.comments||{};
+    }
+  }catch(e){ storageOk = false; }
+  // 저장 자체가 막힌 환경인지 먼저 확인해 둔다 (data: URL 미리보기, 사생활 보호 모드 등)
+  try{ localStorage.setItem(KEY+'-probe','1'); localStorage.removeItem(KEY+'-probe'); }
+  catch(e){ storageOk = false; }
+}
+function save(){
+  if(!storageOk) return false;
+  try{ localStorage.setItem(KEY, JSON.stringify(S)); return true; }
+  catch(e){ storageOk = false; renderStorageWarn(); toast('저장하지 못했습니다 — 설정 탭의 안내를 봐 주세요'); return false; }
+}
+let toastTimer;
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.classList.remove('show'), 2600);
+}
+const uid = ()=> Math.random().toString(36).slice(2,9) + Date.now().toString(36).slice(-3);
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ───────── 값 다루기 ───────── */
+/** "88.2점", "79.8...? 정도", "3등급(65.2점)" 같은 자유 텍스트에서 첫 숫자를 꺼낸다. */
+function num(v){
+  if(v===''||v==null) return null;
+  if(typeof v === 'number') return isFinite(v) ? v : null;
+  const m = String(v).replace(/,/g,'').match(/-?\d+(\.\d+)?/);
+  return m ? parseFloat(m[0]) : null;
+}
+/** "64 3등급", "3등급(65.2점)", "2" → {score, grade} */
+function parseScoreGrade(v){
+  const s = String(v==null?'':v);
+  const g = s.match(/([1-9])\s*등급/);
+  const nums = (s.replace(/,/g,'').match(/\d+(\.\d+)?/g)||[]).map(parseFloat);
+  let grade = g ? parseInt(g[1],10) : null;
+  let score = null;
+  for(const n of nums){ if(grade!==null && n===grade) continue; if(n>9 || String(n).includes('.')){ score = n; break; } }
+  if(score===null && nums.length){ const c = nums.filter(n=> n!==grade); score = c.length ? c[0] : null; }
+  if(grade===null && score!==null && score>=1 && score<=9 && Number.isInteger(score) && nums.length===1) { grade = score; score = null; }
+  return {score, grade};
+}
+function parseAreas(str){
+  return String(str||'').split(',').map(s=>s.trim()).filter(Boolean).map(s=>{
+    const i = s.lastIndexOf(':');
+    if(i<0) return {name:s, full:null};
+    return {name:s.slice(0,i).trim(), full:num(s.slice(i+1))};
+  }).filter(a=>a.name);
+}
+const areasToStr = a => (a||[]).map(x=> x.full==null ? x.name : x.name+':'+x.full).join(', ');
+const fmt = (n,d)=> n==null||!isFinite(n) ? '—' : (Math.round(n*Math.pow(10,d==null?1:d))/Math.pow(10,d==null?1:d)).toLocaleString('ko-KR');
+const signed = (n,d)=> n==null||!isFinite(n) ? '—' : (n>0?'+':'') + fmt(n,d);
+const diffCls = n => n==null||!isFinite(n) ? 'flat' : n>0.05 ? 'up' : n<-0.05 ? 'down' : 'flat';
+const gradeDiffCls = n => n==null||!isFinite(n) ? 'flat' : n<-0.001 ? 'up' : n>0.001 ? 'down' : 'flat'; // 등급은 내려가야 향상
+
+function examOf(id){ return S.exams.find(e=>e.id===id) || null; }
+function studentOf(id){ return S.students.find(s=>s.id===id) || null; }
+function scoreOf(sid, eid){ return (S.scores[sid]||{})[eid] || null; }
+function setScore(sid, eid, patch){
+  if(!S.scores[sid]) S.scores[sid] = {};
+  const cur = S.scores[sid][eid] || {};
+  const clean = {};
+  // undefined 인 칸은 "건드리지 않음" 이라는 뜻이므로 기존 값을 덮어쓰지 않는다
+  Object.keys(patch).forEach(k=>{ if(patch[k]!==undefined) clean[k] = patch[k]; });
+  const next = Object.assign({}, cur, clean);
+  const hasAny = ['raw','avg','grade','pct','rank','total','memo'].some(k=> next[k]!=null && next[k]!=='')
+    || (next.areas && Object.values(next.areas).some(v=> v!=null && v!==''));
+  if(!hasAny) delete S.scores[sid][eid]; else S.scores[sid][eid] = next;
+  save();
+}
+/** 회차는 날짜 → 만든 순서로 정렬 */
+function sortedExams(){
+  return S.exams.slice().sort((a,b)=>{
+    const da = a.date||'', db = b.date||'';
+    if(da && db && da!==db) return da < db ? -1 : 1;
+    if(da && !db) return -1; if(!da && db) return 1;
+    return (a.seq||0) - (b.seq||0);
+  });
+}
+/** 한 학생의 기록을 회차 순서대로 */
+function seriesOf(sid){
+  return sortedExams().map(e=>({exam:e, sc:scoreOf(sid,e.id)})).filter(x=>x.sc);
+}
+/** 어떤 회차에 기록이 있는 학생들 (필터 적용) */
+function cohort(eid, grade, school){
+  return S.students.filter(s=>{
+    if(grade && s.grade!==grade) return false;
+    if(school && s.school!==school) return false;
+    return !eid || !!scoreOf(s.id, eid);
+  });
+}
+function statsFor(eid, grade, school){
+  const vals = cohort(eid,grade,school).map(s=> num(scoreOf(s.id,eid)?.raw)).filter(v=>v!=null);
+  if(!vals.length) return null;
+  const sorted = vals.slice().sort((a,b)=>a-b);
+  const sum = vals.reduce((a,b)=>a+b,0);
+  const mean = sum/vals.length;
+  const mid = n => sorted.length%2 ? sorted[(sorted.length-1)/2] : (sorted[sorted.length/2-1]+sorted[sorted.length/2])/2;
+  const sd = Math.sqrt(vals.reduce((a,b)=>a+(b-mean)*(b-mean),0)/vals.length);
+  return {n:vals.length, mean, median:mid(), min:sorted[0], max:sorted[sorted.length-1], sd, sorted};
+}
+/** 평균 대비 편차 (반 안에서의 위치) */
+function classMean(eid, grade, school){ const st = statsFor(eid,grade,school); return st ? st.mean : null; }
+
+/* ───────── 탭 ───────── */
+function showPane(name){
+  $$('nav.tabs button').forEach(b=>{
+    const on = b.dataset.pane===name;
+    b.setAttribute('aria-selected', on?'true':'false');
+    const pane = $('#pane-'+b.dataset.pane);
+    if(pane) pane.hidden = !on;
+  });
+  if(name==='entry')  renderEntry();
+  if(name==='report') renderReport();
+  if(name==='class')  renderClass();
+  if(name==='manage'){ renderExams(); renderStudents(); }
+  if(name==='config') renderConfig();
+  try{ window.scrollTo({top:0, behavior:'instant'}); }catch(e){ window.scrollTo(0,0); }
+}
+$$('nav.tabs button').forEach(b=> b.addEventListener('click', ()=> showPane(b.dataset.pane)));
+
+/* ───────── 셀렉트 채우기 ───────── */
+function fillExamSelect(sel, keep){
+  const list = sortedExams();
+  const want = keep!=null ? keep : sel.value;
+  sel.innerHTML = list.length
+    ? list.map(e=>`<option value="${e.id}">${esc(e.name)}${e.date?' ('+esc(e.date)+')':''}</option>`).join('')
+    : '<option value="">회차 없음 — 먼저 만들어 주세요</option>';
+  if(want && list.some(e=>e.id===want)) sel.value = want;
+  else if(list.length) sel.value = list[list.length-1].id;
+}
+function fillStudentSelect(sel, keep){
+  const list = S.students.slice().sort(byStudent);
+  const want = keep!=null ? keep : sel.value;
+  sel.innerHTML = list.length
+    ? list.map(s=>`<option value="${s.id}">${esc(s.name)} · ${esc(s.grade||'')} ${esc(s.school||'')}</option>`).join('')
+    : '<option value="">학생 없음 — 먼저 등록해 주세요</option>';
+  if(want && list.some(s=>s.id===want)) sel.value = want;
+}
+function byStudent(a,b){
+  return (a.grade||'').localeCompare(b.grade||'','ko') || (a.school||'').localeCompare(b.school||'','ko')
+      || (a.name||'').localeCompare(b.name||'','ko');
+}
+function fillFilterSelects(gSel, sSel){
+  const grades = Array.from(new Set(S.students.map(s=>s.grade).filter(Boolean))).sort();
+  const schools = Array.from(new Set(S.students.map(s=>s.school).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'ko'));
+  const gv = gSel.value, sv = sSel.value;
+  gSel.innerHTML = '<option value="">학년 전체</option>' + grades.map(g=>`<option>${esc(g)}</option>`).join('');
+  sSel.innerHTML = '<option value="">학교 전체</option>' + schools.map(g=>`<option>${esc(g)}</option>`).join('');
+  if(grades.includes(gv)) gSel.value = gv;
+  if(schools.includes(sv)) sSel.value = sv;
+}
+
+/* ───────── 성적 입력 ───────── */
+function renderEntry(){
+  fillExamSelect($('#entryExam'));
+  fillFilterSelects($('#entryGrade'), $('#entrySchool'));
+  const eid = $('#entryExam').value;
+  const ex = examOf(eid);
+  const head = $('#entryHead'), body = $('#entryBody'), emptyBox = $('#entryEmpty');
+  const meta = $('#entryMeta');
+
+  if(!ex){
+    head.innerHTML=''; body.innerHTML='';
+    emptyBox.innerHTML = '<div class="empty"><span class="big">🗓</span>회차가 없습니다.<br><b>학생 · 회차</b> 탭에서 시험 회차를 먼저 만들어 주세요.</div>';
+    meta.textContent = '';
+    return;
+  }
+  const g = $('#entryGrade').value, sch = $('#entrySchool').value;
+  const list = S.students.filter(s=> (!g||s.grade===g) && (!sch||s.school===sch)).sort(byStudent);
+  const st = statsFor(eid, g, sch);
+  meta.innerHTML = `${esc(ex.name)} · ${ex.type==='mock'?'모의고사':'내신'} · 만점 ${fmt(ex.full,0)}점`
+    + (st ? ` — 입력 ${st.n}명 · 평균 <b>${fmt(st.mean)}</b> · 최고 ${fmt(st.max)} · 최저 ${fmt(st.min)}` : ' — 아직 입력된 점수가 없습니다');
+
+  if(!list.length){
+    head.innerHTML=''; body.innerHTML='';
+    emptyBox.innerHTML = '<div class="empty"><span class="big">🙋</span>해당하는 학생이 없습니다.<br><b>학생 · 회차</b> 탭에서 명단을 등록해 주세요.</div>';
+    return;
+  }
+  emptyBox.innerHTML = '';
+  const mock = ex.type==='mock';
+  head.innerHTML = `<tr>
+    <th>학생</th><th>학교</th><th class="mid">학년</th>
+    <th class="num">원점수</th>
+    ${mock ? '<th class="num">등급</th><th class="num">백분위</th>' : '<th class="num">반평균</th><th class="num">석차</th>'}
+    <th>메모</th><th></th></tr>`;
+
+  body.innerHTML = list.map(s=>{
+    const sc = scoreOf(s.id, eid) || {};
+    const f2 = mock
+      ? `<td class="num"><input type="number" step="1" min="1" max="9" data-f="grade" data-s="${s.id}" value="${sc.grade??''}"></td>
+         <td class="num"><input type="number" step="0.1" data-f="pct" data-s="${s.id}" value="${sc.pct??''}"></td>`
+      : `<td class="num"><input type="number" step="0.1" data-f="avg" data-s="${s.id}" value="${sc.avg??''}"></td>
+         <td class="num"><input type="number" step="1" data-f="rank" data-s="${s.id}" value="${sc.rank??''}"></td>`;
+    return `<tr>
+      <td><b>${esc(s.name)}</b></td>
+      <td style="color:var(--ink-soft)">${esc(s.school||'')}</td>
+      <td class="mid" style="color:var(--ink-soft)">${esc(s.grade||'')}</td>
+      <td class="num"><input type="number" step="0.1" data-f="raw" data-s="${s.id}" value="${sc.raw??''}"></td>
+      ${f2}
+      <td><input type="text" class="wide" data-f="memo" data-s="${s.id}" value="${esc(sc.memo||'')}"></td>
+      <td><button class="btn ghost sm" data-detail="${s.id}">상세</button></td>
+    </tr>`;
+  }).join('');
+
+  $$('#entryBody input').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      const f = inp.dataset.f, sid = inp.dataset.s;
+      let v = inp.value.trim();
+      const val = f==='memo' ? (v||null) : (v===''? null : num(v));
+      setScore(sid, eid, {[f]: val});
+      inp.classList.add('saved'); setTimeout(()=>inp.classList.remove('saved'), 700);
+      const stt = statsFor(eid, $('#entryGrade').value, $('#entrySchool').value);
+      meta.innerHTML = `${esc(ex.name)} · ${ex.type==='mock'?'모의고사':'내신'} · 만점 ${fmt(ex.full,0)}점`
+        + (stt ? ` — 입력 ${stt.n}명 · 평균 <b>${fmt(stt.mean)}</b> · 최고 ${fmt(stt.max)} · 최저 ${fmt(stt.min)}` : '');
+    });
+    inp.addEventListener('keydown', e=>{
+      if(e.key!=='Enter') return;
+      e.preventDefault(); inp.blur();
+      const same = $$(`#entryBody input[data-f="${inp.dataset.f}"]`);
+      const i = same.indexOf(inp);
+      if(i>=0 && same[i+1]) { same[i+1].focus(); same[i+1].select(); }
+    });
+  });
+  $$('#entryBody [data-detail]').forEach(b=> b.addEventListener('click', ()=> openDetail(b.dataset.detail, eid)));
+}
+['#entryExam','#entryGrade','#entrySchool'].forEach(sel=>{
+  document.addEventListener('change', e=>{ if(e.target.matches(sel)) renderEntry(); });
+});
+
+/* ───────── 상세 입력 ───────── */
+let ddCtx = null;
+function openDetail(sid, eid){
+  const s = studentOf(sid), e = examOf(eid); if(!s||!e) return;
+  ddCtx = {sid, eid};
+  const sc = scoreOf(sid,eid) || {};
+  $('#ddTitle').textContent = `${s.name} · ${e.name}`;
+  $('#ddSub').textContent = `${e.type==='mock'?'모의고사':'내신'} · 만점 ${e.full}점 · ${s.school||''} ${s.grade||''}`;
+  $('#ddRaw').value = sc.raw ?? ''; $('#ddAvg').value = sc.avg ?? '';
+  $('#ddGrade').value = sc.grade ?? ''; $('#ddPct').value = sc.pct ?? '';
+  $('#ddRank').value = sc.rank ?? ''; $('#ddTotal').value = sc.total ?? '';
+  $('#ddMemo').value = sc.memo ?? '';
+  const areas = e.areas||[];
+  $('#ddAreas').innerHTML = areas.length
+    ? `<div class="field"><span>영역별 득점</span><div class="grid3">`
+      + areas.map(a=>`<div class="field" style="margin:0">
+          <span style="font-weight:500; color:var(--ink-soft)">${esc(a.name)}${a.full!=null?' / '+a.full:''}</span>
+          <input type="number" step="0.1" data-area="${esc(a.name)}" value="${(sc.areas||{})[a.name] ?? ''}" style="width:100%">
+        </div>`).join('')
+      + `</div></div>`
+    : '<p class="hint">이 회차에는 영역이 설정되어 있지 않습니다. <b>학생 · 회차</b> 탭에서 회차를 고치면 영역별 입력이 생깁니다.</p>';
+  $('#dlgDetail').showModal();
+}
+$('#ddSave').addEventListener('click', ()=>{
+  if(!ddCtx) return;
+  const areas = {};
+  $$('#ddAreas input[data-area]').forEach(i=>{ const v = num(i.value); if(v!=null) areas[i.dataset.area] = v; });
+  setScore(ddCtx.sid, ddCtx.eid, {
+    raw:num($('#ddRaw').value), avg:num($('#ddAvg').value), grade:num($('#ddGrade').value),
+    pct:num($('#ddPct').value), rank:num($('#ddRank').value), total:num($('#ddTotal').value),
+    memo:$('#ddMemo').value.trim()||null,
+    areas: Object.keys(areas).length ? areas : null
+  });
+  $('#dlgDetail').close(); renderEntry(); toast('저장했습니다');
+});
+$('#ddDel').addEventListener('click', ()=>{
+  if(!ddCtx) return;
+  if(S.scores[ddCtx.sid]) delete S.scores[ddCtx.sid][ddCtx.eid];
+  save(); $('#dlgDetail').close(); renderEntry(); toast('이 회차 기록을 지웠습니다');
+});
+$('#ddClose').addEventListener('click', ()=> $('#dlgDetail').close());
+
+/* ───────── SVG 차트 ───────── */
+function lineChart(opts){
+  // opts: {w,h, labels[], series:[{values[], color, dash, label, dot}], yMin,yMax, invert, valueFmt, yTicks}
+  const w = opts.w||640, h = opts.h||190;
+  const pad = {l:34, r:14, t:16, b:26};
+  const iw = w-pad.l-pad.r, ih = h-pad.t-pad.b;
+  const n = opts.labels.length;
+  const all = opts.series.flatMap(s=> s.values.filter(v=>v!=null));
+  if(!all.length) return '<p class="hint">표시할 값이 없습니다.</p>';
+  let lo = opts.yMin!=null ? opts.yMin : Math.min.apply(null, all);
+  let hi = opts.yMax!=null ? opts.yMax : Math.max.apply(null, all);
+  if(hi===lo){ hi = lo + 1; lo = Math.max(0, lo - 1); }
+  const padY = (hi-lo)*0.12; if(opts.yMin==null) lo -= padY; if(opts.yMax==null) hi += padY;
+  if(opts.yMin==null && lo<0 && Math.min.apply(null,all)>=0) lo = 0;
+  const x = i => n<=1 ? pad.l+iw/2 : pad.l + iw*i/(n-1);
+  const y = v => opts.invert
+    ? pad.t + ih*( (v-lo)/(hi-lo) )
+    : pad.t + ih*(1 - (v-lo)/(hi-lo));
+  const ticks = opts.yTicks || 4;
+  let g = '';
+  for(let t=0;t<=ticks;t++){
+    const v = lo + (hi-lo)*t/ticks, yy = y(v);
+    g += `<line x1="${pad.l}" y1="${yy.toFixed(1)}" x2="${w-pad.r}" y2="${yy.toFixed(1)}" stroke="var(--paper-line)" stroke-width="1"/>`
+      +  `<text x="${pad.l-6}" y="${(yy+3.5).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--paper-soft)">${opts.tickFmt?opts.tickFmt(v):fmt(v,0)}</text>`;
+  }
+  opts.labels.forEach((lb,i)=>{
+    g += `<text x="${x(i).toFixed(1)}" y="${h-8}" text-anchor="middle" font-size="9.5" fill="var(--paper-soft)">${esc(lb)}</text>`;
+  });
+  opts.series.forEach(s=>{
+    const pts = s.values.map((v,i)=> v==null?null:[x(i),y(v)]).filter(Boolean);
+    if(pts.length>1 && s.line!==false){
+      // 값이 비는 구간은 선을 끊는다
+      let d='', prev=-2;
+      s.values.forEach((v,i)=>{
+        if(v==null){ prev=-2; return; }
+        d += (prev===i-1 ? ' L ' : ' M ') + x(i).toFixed(1) + ' ' + y(v).toFixed(1);
+        prev = i;
+      });
+      g += `<path d="${d.trim()}" fill="none" stroke="${s.color}" stroke-width="${s.width||2.2}"
+            stroke-linejoin="round" stroke-linecap="round" ${s.dash?`stroke-dasharray="${s.dash}"`:''}/>`;
+    }
+    if(s.dot!==false) s.values.forEach((v,i)=>{
+      if(v==null) return;
+      g += `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="${s.r||3.2}" fill="${s.fill||'var(--paper)'}" stroke="${s.color}" stroke-width="2"/>`;
+      if(s.showValues) g += `<text x="${x(i).toFixed(1)}" y="${(y(v)-8).toFixed(1)}" text-anchor="middle" font-size="9.5" font-weight="700" fill="${s.color}">${opts.valueFmt?opts.valueFmt(v):fmt(v)}</text>`;
+    });
+  });
+  return `<svg class="chart" viewBox="0 0 ${w} ${h}" role="img">${g}</svg>`;
+}
+
+function barsChart(items, opts){
+  // items: [{label, value, full, prev}]  — 득점률 가로 막대
+  opts = opts||{};
+  const rowH = 22, w = opts.w||300, labelW = opts.labelW||62, valW = 44;
+  const h = Math.max(1, items.length)*rowH + 6;
+  const barX = labelW, barW = w - labelW - valW;
+  let g = '';
+  items.forEach((it,i)=>{
+    const yy = i*rowH + 6;
+    const pct = it.full ? Math.max(0, Math.min(1, it.value/it.full)) : 0;
+    const col = pct>=0.8 ? 'var(--up)' : pct>=0.6 ? 'var(--gold)' : 'var(--down)';
+    g += `<text x="0" y="${yy+11}" font-size="10" fill="var(--paper-ink)">${esc(it.label)}</text>`
+      +  `<rect x="${barX}" y="${yy+2}" width="${barW}" height="11" rx="5.5" fill="var(--line-soft)"/>`
+      +  `<rect x="${barX}" y="${yy+2}" width="${(barW*pct).toFixed(1)}" height="11" rx="5.5" fill="${col}"/>`;
+    if(it.prev!=null && it.full){
+      const px = barX + barW*Math.max(0,Math.min(1,it.prev/it.full));
+      g += `<line x1="${px.toFixed(1)}" y1="${yy}" x2="${px.toFixed(1)}" y2="${yy+15}" stroke="var(--paper-soft)" stroke-width="1.5" stroke-dasharray="2 2"/>`;
+    }
+    g += `<text x="${w}" y="${yy+11}" text-anchor="end" font-size="10" font-weight="700" fill="var(--paper-ink)">`
+      +  `${fmt(it.value)}${it.full?'<tspan fill="var(--paper-soft)" font-weight="400">/'+fmt(it.full,0)+'</tspan>':''}</text>`;
+  });
+  return `<svg class="chart" viewBox="0 0 ${w} ${h}" role="img">${g}</svg>`;
+}
+
+function histChart(values, opts){
+  opts = opts||{};
+  const w = opts.w||640, h = opts.h||170, pad={l:28,r:12,t:12,b:30};
+  const full = opts.full||100, step = opts.step||10;
+  const bins = []; for(let s=0;s<full;s+=step) bins.push({lo:s, hi:s+step, n:0, mine:false});
+  values.forEach(v=>{
+    let i = Math.floor(v/step); if(i>=bins.length) i = bins.length-1; if(i<0) i=0;
+    bins[i].n++;
+  });
+  if(opts.mark!=null){
+    let i = Math.floor(opts.mark/step); if(i>=bins.length) i=bins.length-1; if(i<0) i=0;
+    bins[i].mine = true;
+  }
+  const maxN = Math.max(1, ...bins.map(b=>b.n));
+  const iw = w-pad.l-pad.r, ih = h-pad.t-pad.b, bw = iw/bins.length;
+  let g = `<line x1="${pad.l}" y1="${pad.t+ih}" x2="${w-pad.r}" y2="${pad.t+ih}" stroke="var(--paper-line)"/>`;
+  bins.forEach((b,i)=>{
+    const bh = ih*b.n/maxN, xx = pad.l + bw*i + 2, yy = pad.t + ih - bh;
+    g += `<rect x="${xx.toFixed(1)}" y="${yy.toFixed(1)}" width="${(bw-4).toFixed(1)}" height="${bh.toFixed(1)}" rx="3"
+           fill="${b.mine?'var(--gold)':'var(--green-mid)'}" opacity="${b.mine?1:.75}"/>`;
+    if(b.n) g += `<text x="${(xx+(bw-4)/2).toFixed(1)}" y="${(yy-3).toFixed(1)}" text-anchor="middle" font-size="9" font-weight="700" fill="var(--paper-ink)">${b.n}</text>`;
+    if(i%2===0 || bins.length<=10)
+      g += `<text x="${(xx+(bw-4)/2).toFixed(1)}" y="${h-9}" text-anchor="middle" font-size="9" fill="var(--paper-soft)">${b.lo}</text>`;
+  });
+  if(opts.meanAt!=null){
+    const mx = pad.l + iw*Math.max(0,Math.min(1,opts.meanAt/full));
+    g += `<line x1="${mx.toFixed(1)}" y1="${pad.t-2}" x2="${mx.toFixed(1)}" y2="${pad.t+ih}" stroke="var(--down)" stroke-width="1.5" stroke-dasharray="3 3"/>`
+      +  `<text x="${mx.toFixed(1)}" y="${pad.t-4}" text-anchor="middle" font-size="9" fill="var(--down)" font-weight="700">평균 ${fmt(opts.meanAt)}</text>`;
+  }
+  return `<svg class="chart" viewBox="0 0 ${w} ${h}" role="img">${g}</svg>`;
+}
+
+/* ───────── 개인 리포트 ───────── */
+function renderReport(){
+  fillStudentSelect($('#repStudent'));
+  const sid = $('#repStudent').value;
+  const out = $('#repOut');
+  const s = studentOf(sid);
+  if(!s){
+    out.innerHTML = '<div class="card"><div class="empty"><span class="big">📄</span>학생을 먼저 등록해 주세요.<br><b>학생 · 회차</b> 탭에서 명단을 추가할 수 있습니다.</div></div>';
+    return;
+  }
+  const type = $('#repType').value;
+  const all = seriesOf(sid);
+  const ser = type ? all.filter(x=> x.exam.type===type) : all;
+  if(!all.length){
+    out.innerHTML = `<div class="card"><div class="empty"><span class="big">✏️</span><b>${esc(s.name)}</b> 학생의 성적이 아직 없습니다.<br><b>성적 입력</b> 탭에서 회차별 점수를 넣어 주세요.</div></div>`;
+    return;
+  }
+  if(!ser.length){
+    out.innerHTML = `<div class="card"><div class="empty"><span class="big">🔎</span><b>${esc(s.name)}</b> 학생에게 ${type==='mock'?'모의고사':'내신'} 기록이 없습니다.<br>위에서 <b>내신 + 모의고사</b>로 바꿔 보세요.</div></div>`;
+    return;
+  }
+  const mixed = !type && ser.some(x=>x.exam.type==='mock') && ser.some(x=>x.exam.type==='naesin');
+  const showClass = $('#repShowClass').checked, showArea = $('#repShowArea').checked;
+  const labels = ser.map(x=> shortName(x.exam.name));
+  const mine   = ser.map(x=> num(x.sc.raw));
+  const avgs   = ser.map(x=> {
+    const given = num(x.sc.avg);
+    if(given!=null) return given;
+    return classMean(x.exam.id, s.grade, s.school);
+  });
+  const grades = ser.map(x=> num(x.sc.grade));
+  const last = ser[ser.length-1], prev = ser.length>1 ? ser[ser.length-2] : null;
+  const lastRaw = num(last.sc.raw), prevRaw = prev ? num(prev.sc.raw) : null;
+  const delta = (lastRaw!=null && prevRaw!=null) ? lastRaw-prevRaw : null;
+  const valid = mine.filter(v=>v!=null);
+  const best = valid.length ? Math.max.apply(null, valid) : null;
+  const avgMine = valid.length ? valid.reduce((a,b)=>a+b,0)/valid.length : null;
+  const lastAvg = avgs[avgs.length-1];
+  const gap = (lastRaw!=null && lastAvg!=null) ? lastRaw-lastAvg : null;
+  const gradeVals = grades.filter(v=>v!=null);
+  const lastGrade = grades[grades.length-1];
+  const prevGrade = (()=>{ for(let i=grades.length-2;i>=0;i--) if(grades[i]!=null) return grades[i]; return null; })();
+  const cmt = S.comments[sid] || {};
+  const today = new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
+
+  // 영역별 — 영역 점수가 실제로 들어 있는 가장 최근 회차를 쓴다 (최근 회차에 없을 수 있으므로)
+  let areaBlock = '';
+  const withArea = ser.filter(x=> x.exam.areas && x.exam.areas.length && x.sc.areas
+                                 && Object.keys(x.sc.areas).length);
+  if(showArea && withArea.length){
+    const cur = withArea[withArea.length-1];
+    // 같은 영역 구성을 쓰는 바로 앞 회차를 비교 대상으로
+    const before = withArea.slice(0,-1).reverse()
+      .find(x=> areasToStr(x.exam.areas)===areasToStr(cur.exam.areas)) || null;
+    const items = cur.exam.areas.map(a=>({
+      label:a.name, value:num((cur.sc.areas||{})[a.name]), full:a.full,
+      prev: before ? num((before.sc.areas||{})[a.name]) : null
+    })).filter(i=> i.value!=null);
+    if(items.length){
+      const weakest = items.slice().filter(i=>i.full).sort((a,b)=> (a.value/a.full)-(b.value/b.full))[0];
+      areaBlock = `<div class="rp-box"><h4>영역별 득점 — ${esc(cur.exam.name)}</h4>
+        ${barsChart(items,{w:300})}
+        <div class="legend"><span class="k">${before?'점선 = '+esc(shortName(before.exam.name))+' 위치':'비교할 직전 회차 없음'}</span></div>
+        ${weakest ? `<p style="margin:6px 0 0; font-size:11px; line-height:1.6">가장 약한 영역은 <b>${esc(weakest.label)}</b>
+          (${fmt(weakest.value)}/${fmt(weakest.full,0)}, 득점률 ${fmt(weakest.value/weakest.full*100,0)}%)입니다.</p>` : ''}
+      </div>`;
+    }
+  }
+
+  // 등급 추이 (값이 2개 이상일 때만)
+  let gradeBlock = '';
+  if(gradeVals.length>=2){
+    gradeBlock = `<div class="rp-box"><h4>등급 추이 (위로 갈수록 높은 등급)</h4>
+      ${lineChart({w:300,h:140,labels,invert:true,yMin:1,yMax:9,yTicks:4,tickFmt:v=>fmt(v,0)+'등급',
+        series:[{values:grades,color:'var(--gold-deep)',showValues:true,r:3}]})}</div>`;
+  }
+
+  const rows = ser.slice().reverse().map(x=>{
+    const r = num(x.sc.raw), a = num(x.sc.avg) ?? classMean(x.exam.id, s.grade, s.school);
+    const g = num(x.sc.grade), rk = num(x.sc.rank), tot = num(x.sc.total);
+    const d = (()=>{ const i = ser.indexOf(x); if(i<=0) return null;
+      const p = num(ser[i-1].sc.raw); return (r!=null&&p!=null) ? r-p : null; })();
+    return `<tr>
+      <td>${esc(x.exam.name)}</td>
+      <td style="color:var(--paper-soft)">${x.exam.type==='mock'?'모의':'내신'}</td>
+      <td class="num"><b>${fmt(r)}</b></td>
+      <td class="num ${diffCls(d)}">${signed(d)}</td>
+      <td class="num">${fmt(a)}</td>
+      <td class="num">${r!=null&&a!=null?`<span class="${diffCls(r-a)}">${signed(r-a)}</span>`:'—'}</td>
+      <td class="num">${g!=null?fmt(g,0)+'등급':'—'}</td>
+      <td class="num">${rk!=null?fmt(rk,0)+(tot!=null?'/'+fmt(tot,0):''):'—'}</td>
+      <td style="color:var(--paper-soft)">${esc(x.sc.memo||'')}</td>
+    </tr>`;
+  }).join('');
+
+  const narrative = buildNarrative(s, ser, {delta, gap, lastGrade, prevGrade, avgMine, best});
+
+  out.innerHTML = `<div class="sheet" id="repSheet">
+    <div class="rp-head">
+      <div class="brand">${esc(S.config.academy||'[오름] 국어')}</div>
+      <div class="ttl">성적 추이 · 상담 리포트</div>
+      <div class="when">출력일 ${esc(today)}<br>누적 ${ser.length}개 회차</div>
+    </div>
+    <div class="rp-who">
+      <div class="nm">${esc(s.name)}</div>
+      <div class="meta">${esc(s.school||'')} ${esc(s.grade||'')}${s.klass?' · '+esc(s.klass):''}${s.teacher?' · 담당 '+esc(s.teacher):''}</div>
+    </div>
+
+    <div class="rp-sec">
+      <div class="rp-kpis">
+        <div class="rp-kpi"><div class="l">최근 ${esc(shortName(last.exam.name))}</div><div class="n">${fmt(lastRaw)}</div></div>
+        <div class="rp-kpi"><div class="l">직전 대비</div><div class="n ${diffCls(delta)}">${signed(delta)}</div></div>
+        <div class="rp-kpi"><div class="l">평균 대비</div><div class="n ${diffCls(gap)}">${signed(gap)}</div></div>
+        <div class="rp-kpi"><div class="l">최고점</div><div class="n">${fmt(best)}</div></div>
+        <div class="rp-kpi"><div class="l">${lastGrade!=null?'최근 등급':'평균 점수'}</div>
+          <div class="n">${lastGrade!=null?fmt(lastGrade,0)+'<small>등급</small>':fmt(avgMine)}</div></div>
+      </div>
+    </div>
+
+    <div class="rp-sec">
+      <h3>점수 추이</h3>
+      ${lineChart({w:640,h:150,labels,
+        series:[
+          ...(showClass ? [{values:avgs,color:'var(--paper-soft)',dash:'4 3',width:1.6,r:2.4}] : []),
+          {values:mine,color:'var(--green)',showValues:true},
+          ...(mixed ? [{values:mine.map((v,i)=> ser[i].exam.type==='mock'?v:null),
+                        color:'var(--gold)',fill:'var(--gold)',r:3.4,line:false,dot:true}] : [])
+        ]})}
+      <div class="legend">
+        <span class="k" style="color:var(--green)"><i></i>${esc(s.name)}</span>
+        ${showClass?'<span class="k" style="color:var(--paper-soft)"><i style="border-top-style:dashed"></i>같은 학교·학년 원생 평균</span>':''}
+        ${mixed?'<span class="k" style="color:var(--gold-deep)">● 모의고사 회차</span>':''}
+      </div>
+      ${mixed?'<p style="margin:4px 0 0; font-size:10.5px; color:var(--paper-soft)">내신과 모의고사는 원점수의 성격이 달라 한 선으로 이어 읽을 때 주의가 필요합니다.</p>':''}
+    </div>
+
+    ${(areaBlock||gradeBlock) ? `<div class="rp-sec"><div class="rp-2col">${areaBlock}${gradeBlock}</div></div>` : ''}
+
+    <div class="rp-sec">
+      <h3>회차별 기록</h3>
+      <table><thead><tr>
+        <th>회차</th><th>구분</th><th class="num">점수</th><th class="num">증감</th>
+        <th class="num">평균</th><th class="num">평균차</th><th class="num">등급</th><th class="num">석차</th><th>메모</th>
+      </tr></thead><tbody>${rows}</tbody></table>
+    </div>
+
+    <div class="rp-sec">
+      <h3>흐름 요약</h3>
+      <div class="rp-note">${esc(narrative)}</div>
+    </div>
+
+    <div class="rp-sec">
+      <h3>상담 코멘트</h3>
+      <div class="rp-cmt">
+        <div class="rp-box"><h4>강점</h4><p>${cmt.strong?esc(cmt.strong):'<span style="color:var(--paper-soft)">—</span>'}</p></div>
+        <div class="rp-box"><h4>문제점</h4><p>${cmt.weak?esc(cmt.weak):'<span style="color:var(--paper-soft)">—</span>'}</p></div>
+        <div class="rp-box"><h4>개선 · 방학 계획</h4><p>${cmt.plan?esc(cmt.plan):'<span style="color:var(--paper-soft)">—</span>'}</p></div>
+      </div>
+      ${cmt.free ? `<div class="rp-note" style="margin-top:8px">${esc(cmt.free)}</div>`
+                 : `<div class="rp-note blank" style="margin-top:8px">담임 소견 —</div>`}
+    </div>
+
+    <div class="rp-foot">
+      <span>${esc(S.config.academy||'[오름] 국어')} · 성적 추이 리포트</span>
+      <span class="sign">${esc(S.config.sign||'')}</span>
+    </div>
+  </div>`;
+}
+function shortName(n){
+  return String(n||'').replace(/^20\d\d\s*/,'').replace(/학년도\s*/,'').slice(0,12);
+}
+/** 숫자에서 바로 읽히는 사실만 문장으로. 과장 없이. */
+function buildNarrative(s, ser, k){
+  const out = [];
+  const n = ser.length;
+  const first = ser[0], last = ser[n-1];
+  const fr = num(first.sc.raw), lr = num(last.sc.raw);
+  out.push(`${s.name} 학생은 기록된 ${n}개 회차 중 ${last.exam.name}에서 ${lr!=null?fmt(lr)+'점':'점수 미입력'}을 받았습니다.`);
+  if(k.delta!=null){
+    out.push(k.delta>0.05 ? `직전 회차보다 ${fmt(k.delta)}점 올랐습니다.`
+          : k.delta<-0.05 ? `직전 회차보다 ${fmt(-k.delta)}점 내렸습니다.`
+          : `직전 회차와 사실상 같은 점수입니다.`);
+  }
+  if(n>=3 && fr!=null && lr!=null){
+    const d = lr-fr;
+    out.push(`첫 기록(${first.exam.name}, ${fmt(fr)}점)과 비교하면 ${d>0?'+'+fmt(d):fmt(d)}점입니다.`);
+  }
+  if(k.gap!=null){
+    out.push(k.gap>0 ? `최근 회차는 평균보다 ${fmt(k.gap)}점 높습니다.` : `최근 회차는 평균보다 ${fmt(-k.gap)}점 낮습니다.`);
+  }
+  if(k.lastGrade!=null && k.prevGrade!=null && k.lastGrade!==k.prevGrade){
+    out.push(k.lastGrade<k.prevGrade ? `등급은 ${fmt(k.prevGrade,0)}등급에서 ${fmt(k.lastGrade,0)}등급으로 올랐습니다.`
+                                     : `등급은 ${fmt(k.prevGrade,0)}등급에서 ${fmt(k.lastGrade,0)}등급으로 내렸습니다.`);
+  }
+  const vals = ser.map(x=>num(x.sc.raw)).filter(v=>v!=null);
+  if(vals.length>=3){
+    const mean = vals.reduce((a,b)=>a+b,0)/vals.length;
+    const sd = Math.sqrt(vals.reduce((a,b)=>a+(b-mean)*(b-mean),0)/vals.length);
+    out.push(sd<4 ? `회차별 편차가 ${fmt(sd)}점으로 작아 점수가 안정적인 편입니다.`
+                  : `회차별 편차가 ${fmt(sd)}점으로 회차에 따라 기복이 있습니다.`);
+  }
+  return out.join(' ');
+}
+$('#repStudent').addEventListener('change', renderReport);
+$('#repType').addEventListener('change', renderReport);
+$('#repShowClass').addEventListener('change', renderReport);
+$('#repShowArea').addEventListener('change', renderReport);
+$('#btnPrint').addEventListener('click', ()=> window.print());
+
+$('#btnRepComment').addEventListener('click', ()=>{
+  const sid = $('#repStudent').value, s = studentOf(sid); if(!s) return toast('학생을 먼저 고르세요');
+  const c = S.comments[sid]||{};
+  $('#dcWho').textContent = `${s.name} · ${s.school||''} ${s.grade||''}`;
+  $('#dcStrong').value = c.strong||''; $('#dcWeak').value = c.weak||'';
+  $('#dcPlan').value = c.plan||''; $('#dcFree').value = c.free||'';
+  $('#dcInternalBox').hidden = !c.internal;
+  $('#dcInternal').textContent = c.internal || '';
+  const chip = (box, ta, list)=>{
+    $(box).innerHTML = (list||[]).map((t,i)=>`<button data-i="${i}">${esc(t.length>28?t.slice(0,28)+'…':t)}</button>`).join('');
+    $$(box+' button').forEach(b=> b.addEventListener('click', ()=>{
+      const t = list[+b.dataset.i], cur = $(ta).value.trim();
+      $(ta).value = cur ? cur+' '+t : t;
+    }));
+  };
+  chip('#dcChipStrong','#dcStrong', S.presets.strong);
+  chip('#dcChipWeak','#dcWeak', S.presets.weak);
+  chip('#dcChipPlan','#dcPlan', S.presets.plan);
+  $('#dlgComment').showModal();
+});
+$('#dcSave').addEventListener('click', ()=>{
+  const sid = $('#repStudent').value; if(!sid) return;
+  S.comments[sid] = Object.assign({}, S.comments[sid], {
+    strong:$('#dcStrong').value.trim(), weak:$('#dcWeak').value.trim(),
+    plan:$('#dcPlan').value.trim(), free:$('#dcFree').value.trim(), at:new Date().toISOString()
+  });
+  save(); $('#dlgComment').close(); renderReport(); toast('코멘트를 저장했습니다');
+});
+$('#dcClose').addEventListener('click', ()=> $('#dlgComment').close());
+
+/* ───────── 반 전체 ───────── */
+function renderClass(){
+  fillExamSelect($('#clsExam'));
+  fillFilterSelects($('#clsGrade'), $('#clsSchool'));
+  const eid = $('#clsExam').value, ex = examOf(eid);
+  const g = $('#clsGrade').value, sch = $('#clsSchool').value;
+  const out = $('#clsOut');
+  if(!ex){ out.innerHTML = '<div class="card"><div class="empty"><span class="big">🗓</span>회차를 먼저 만들어 주세요.</div></div>'; return; }
+  const st = statsFor(eid, g, sch);
+  if(!st){ out.innerHTML = `<div class="card"><div class="empty"><span class="big">✏️</span><b>${esc(ex.name)}</b>에 입력된 점수가 없습니다.</div></div>`; return; }
+
+  const list = cohort(eid,g,sch).map(s=>{
+    const sc = scoreOf(s.id,eid), raw = num(sc.raw);
+    const ser = seriesOf(s.id);
+    const idx = ser.findIndex(x=>x.exam.id===eid);
+    const prev = idx>0 ? num(ser[idx-1].sc.raw) : null;
+    return {s, raw, grade:num(sc.grade), rank:num(sc.rank),
+            delta:(raw!=null&&prev!=null)?raw-prev:null, gap:raw!=null?raw-st.mean:null};
+  }).sort((a,b)=> (b.raw??-1)-(a.raw??-1));
+
+  const movers = list.filter(x=>x.delta!=null).sort((a,b)=> b.delta-a.delta);
+  const ups = movers.slice(0,5), downs = movers.slice(-5).reverse().filter(x=>x.delta<0);
+
+  // 회차별 평균 흐름
+  const exs = sortedExams().filter(e=> statsFor(e.id,g,sch));
+  const trendLabels = exs.map(e=> shortName(e.name));
+  const trendMean = exs.map(e=> statsFor(e.id,g,sch).mean);
+  const trendMax  = exs.map(e=> statsFor(e.id,g,sch).max);
+  const trendMin  = exs.map(e=> statsFor(e.id,g,sch).min);
+
+  out.innerHTML = `
+  <div class="card">
+    <h2>${esc(ex.name)} 분포 <span class="tag">${g||'전체'} ${sch||''}</span></h2>
+    <div class="stats">
+      <div class="stat"><div class="n">${st.n}<small>명</small></div><div class="l">입력된 학생</div></div>
+      <div class="stat"><div class="n">${fmt(st.mean)}</div><div class="l">평균</div></div>
+      <div class="stat"><div class="n">${fmt(st.median)}</div><div class="l">중앙값</div></div>
+      <div class="stat"><div class="n">${fmt(st.max)}</div><div class="l">최고</div></div>
+      <div class="stat"><div class="n">${fmt(st.min)}</div><div class="l">최저</div></div>
+      <div class="stat"><div class="n">${fmt(st.sd)}</div><div class="l">표준편차</div></div>
+    </div>
+    ${histChart(st.sorted,{full:ex.full||100, step:10, meanAt:st.mean, w:640, h:180})}
+    <p class="hint" style="margin:6px 0 0">가로축은 점수 구간, 막대 위 숫자는 그 구간의 학생 수입니다.</p>
+  </div>
+
+  ${exs.length>1 ? `<div class="card">
+    <h2>회차별 평균 흐름</h2>
+    ${lineChart({w:640,h:190,labels:trendLabels,series:[
+      {values:trendMax,color:'var(--gold)',dash:'3 3',width:1.5,r:2.4},
+      {values:trendMean,color:'var(--green)',showValues:true},
+      {values:trendMin,color:'var(--down)',dash:'3 3',width:1.5,r:2.4}
+    ]})}
+    <div class="legend" style="color:var(--ink-soft)">
+      <span class="k" style="color:var(--gold)"><i style="border-top-style:dashed"></i>최고</span>
+      <span class="k" style="color:var(--green)"><i></i>평균</span>
+      <span class="k" style="color:var(--down)"><i style="border-top-style:dashed"></i>최저</span>
+    </div>
+  </div>` : ''}
+
+  ${movers.length ? `<div class="card">
+    <h2>직전 회차 대비 변화</h2>
+    <div class="grid2">
+      <div><h4 style="font-size:12.5px; margin:0 0 6px; color:var(--up)">많이 오른 학생</h4>
+        <table><tbody>${ups.map(x=>`<tr><td>${esc(x.s.name)}</td>
+          <td class="num">${fmt(x.raw)}</td><td class="num ${diffCls(x.delta)}"><b>${signed(x.delta)}</b></td></tr>`).join('')||'<tr><td class="hint">없음</td></tr>'}</tbody></table></div>
+      <div><h4 style="font-size:12.5px; margin:0 0 6px; color:var(--down)">많이 내린 학생</h4>
+        <table><tbody>${downs.map(x=>`<tr><td>${esc(x.s.name)}</td>
+          <td class="num">${fmt(x.raw)}</td><td class="num ${diffCls(x.delta)}"><b>${signed(x.delta)}</b></td></tr>`).join('')||'<tr><td class="hint">없음</td></tr>'}</tbody></table></div>
+    </div>
+  </div>` : ''}
+
+  <div class="card">
+    <h2>전체 명단</h2>
+    <p class="hint">이름을 누르면 그 학생의 개인 리포트로 넘어갑니다.</p>
+    <div class="tablewrap"><table><thead><tr>
+      <th class="num">순위</th><th>이름</th><th>학교</th><th class="mid">학년</th>
+      <th class="num">점수</th><th class="num">평균차</th><th class="num">직전 대비</th><th class="num">등급</th><th class="num">석차</th>
+    </tr></thead><tbody>${list.map((x,i)=>`<tr>
+      <td class="num" style="color:var(--ink-soft)">${x.raw!=null?i+1:'—'}</td>
+      <td><button class="btn ghost sm" data-go="${x.s.id}" style="padding:2px 6px; font-weight:700">${esc(x.s.name)}</button></td>
+      <td style="color:var(--ink-soft)">${esc(x.s.school||'')}</td>
+      <td class="mid" style="color:var(--ink-soft)">${esc(x.s.grade||'')}</td>
+      <td class="num"><b>${fmt(x.raw)}</b></td>
+      <td class="num ${diffCls(x.gap)}">${signed(x.gap)}</td>
+      <td class="num ${diffCls(x.delta)}">${signed(x.delta)}</td>
+      <td class="num">${x.grade!=null?fmt(x.grade,0):'—'}</td>
+      <td class="num">${x.rank!=null?fmt(x.rank,0):'—'}</td>
+    </tr>`).join('')}</tbody></table></div>
+  </div>`;
+
+  $$('#clsOut [data-go]').forEach(b=> b.addEventListener('click', ()=>{
+    showPane('report'); $('#repStudent').value = b.dataset.go; renderReport();
+  }));
+}
+['#clsExam','#clsGrade','#clsSchool'].forEach(sel=>{
+  document.addEventListener('change', e=>{ if(e.target.matches(sel)) renderClass(); });
+});
+
+/* ───────── 회차 관리 ───────── */
+function renderExams(){
+  const list = sortedExams(), body = $('#examBody');
+  $('#examEmpty').innerHTML = list.length ? '' :
+    '<div class="empty"><span class="big">🗓</span>회차가 아직 없습니다. 위에서 추가해 주세요.<br>예: 2025 1학기 중간 · 2025 1학기 기말 · 2025 9월 모의고사</div>';
+  body.innerHTML = list.map(e=>{
+    const n = S.students.filter(s=> scoreOf(s.id,e.id)).length;
+    return `<tr>
+      <td><b>${esc(e.name)}</b>${e.areas&&e.areas.length?`<div style="font-size:11.5px; color:var(--ink-soft)">${esc(areasToStr(e.areas))}</div>`:''}</td>
+      <td><span class="pill ${e.type==='mock'?'y':'g'}">${e.type==='mock'?'모의고사':'내신'}</span></td>
+      <td style="color:var(--ink-soft)">${esc(e.date||'—')}</td>
+      <td class="num">${fmt(e.full,0)}</td>
+      <td class="num">${n}</td>
+      <td class="row" style="justify-content:flex-end; gap:4px">
+        <button class="btn ghost sm" data-ex-edit="${e.id}">고치기</button>
+        <button class="btn ghost sm" data-ex-del="${e.id}">삭제</button>
+      </td></tr>`;
+  }).join('');
+  $$('[data-ex-del]').forEach(b=> b.addEventListener('click', ()=>{
+    const e = examOf(b.dataset.exDel); if(!e) return;
+    const n = S.students.filter(s=> scoreOf(s.id,e.id)).length;
+    if(!confirm(`"${e.name}" 회차를 지웁니다.\n이 회차에 들어 있는 성적 ${n}건도 함께 사라집니다. 계속할까요?`)) return;
+    S.exams = S.exams.filter(x=>x.id!==e.id);
+    Object.keys(S.scores).forEach(sid=>{ if(S.scores[sid]) delete S.scores[sid][e.id]; });
+    save(); renderExams(); toast('회차를 지웠습니다');
+  }));
+  $$('[data-ex-edit]').forEach(b=> b.addEventListener('click', ()=> editExam(b.dataset.exEdit)));
+}
+function editExam(id){
+  const e = examOf(id); if(!e) return;
+  const name = prompt('회차 이름', e.name); if(name===null) return;
+  const full = prompt('만점', String(e.full)); if(full===null) return;
+  const date = prompt('날짜 (2025-07-01 형태, 비워도 됩니다)', e.date||''); if(date===null) return;
+  const areas = prompt('영역과 배점 (이름:배점, 쉼표로 구분 / 비우면 영역 없음)', areasToStr(e.areas));
+  if(areas===null) return;
+  e.name = name.trim() || e.name;
+  const f = num(full); if(f!=null && f>0) e.full = f;
+  e.date = (date||'').trim();
+  e.areas = parseAreas(areas);
+  save(); renderExams(); toast('회차를 고쳤습니다');
+}
+$('#btnAddExam').addEventListener('click', ()=>{
+  const name = $('#newExamName').value.trim();
+  if(!name) return toast('회차 이름을 적어 주세요');
+  if(S.exams.some(e=>e.name===name)) return toast('같은 이름의 회차가 이미 있습니다');
+  const type = $('#newExamType').value;
+  const areas = parseAreas(type==='mock' ? S.config.areaMock : S.config.areaNaesin);
+  const full = areas.length && areas.every(a=>a.full!=null)
+    ? areas.reduce((a,b)=>a+b.full,0) : 100;
+  S.exams.push({id:uid(), name, type, date:$('#newExamDate').value||'', full, areas, seq:S.exams.length});
+  save(); $('#newExamName').value=''; renderExams(); toast(`"${name}" 회차를 만들었습니다`);
+});
+
+/* ───────── 학생 관리 ───────── */
+function renderStudents(){
+  const list = S.students.slice().sort(byStudent), body = $('#stBody');
+  $('#stEmpty').innerHTML = list.length ? '' :
+    '<div class="empty"><span class="big">🙋</span>학생이 없습니다. 위에서 한 명씩 추가하거나 <b>명단 붙여넣기</b>로 한 번에 넣으세요.</div>';
+  body.innerHTML = list.map(s=>{
+    const n = Object.keys(S.scores[s.id]||{}).length;
+    return `<tr>
+      <td><b>${esc(s.name)}</b></td><td>${esc(s.school||'')}</td>
+      <td>${esc(s.grade||'')}</td><td>${esc(s.klass||'')}</td><td>${esc(s.teacher||'')}</td>
+      <td class="num">${n}</td>
+      <td class="row" style="justify-content:flex-end; gap:4px">
+        <button class="btn ghost sm" data-st-edit="${s.id}">고치기</button>
+        <button class="btn ghost sm" data-st-del="${s.id}">삭제</button>
+      </td></tr>`;
+  }).join('');
+  $$('[data-st-del]').forEach(b=> b.addEventListener('click', ()=>{
+    const s = studentOf(b.dataset.stDel); if(!s) return;
+    const n = Object.keys(S.scores[s.id]||{}).length;
+    if(!confirm(`${s.name} 학생을 지웁니다.\n성적 ${n}건과 상담 코멘트도 함께 사라집니다. 계속할까요?`)) return;
+    S.students = S.students.filter(x=>x.id!==s.id);
+    delete S.scores[s.id]; delete S.comments[s.id];
+    save(); renderStudents(); toast('학생을 지웠습니다');
+  }));
+  $$('[data-st-edit]').forEach(b=> b.addEventListener('click', ()=>{
+    const s = studentOf(b.dataset.stEdit); if(!s) return;
+    const name = prompt('이름', s.name); if(name===null) return;
+    const school = prompt('학교', s.school||''); if(school===null) return;
+    const grade = prompt('학년 (고1/고2/고3)', s.grade||''); if(grade===null) return;
+    const klass = prompt('반 (선택)', s.klass||''); if(klass===null) return;
+    const teacher = prompt('담당 선생님 (선택)', s.teacher||''); if(teacher===null) return;
+    Object.assign(s, {name:name.trim()||s.name, school:school.trim(), grade:grade.trim(), klass:klass.trim(), teacher:teacher.trim()});
+    save(); renderStudents(); toast('고쳤습니다');
+  }));
+}
+$('#btnAddStudent').addEventListener('click', ()=>{
+  const name = $('#newStName').value.trim();
+  if(!name) return toast('이름을 적어 주세요');
+  const school = $('#newStSchool').value.trim(), grade = $('#newStGrade').value;
+  if(S.students.some(s=> s.name===name && s.school===school && s.grade===grade))
+    return toast('같은 학생이 이미 있습니다');
+  S.students.push({id:uid(), name, school, grade, klass:$('#newStClass').value.trim(), teacher:''});
+  save(); $('#newStName').value=''; $('#newStClass').value='';
+  renderStudents(); toast(`${name} 학생을 추가했습니다`);
+});
+
+/* ───────── 붙여넣기 가져오기 ───────── */
+let dpRows = null, dpMode = 'scores';
+function splitRows(text){
+  return text.replace(/\r/g,'').split('\n').filter(l=>l.trim()!=='')
+    .map(l=> l.includes('\t') ? l.split('\t') : splitCsvLine(l));
+}
+function splitCsvLine(line){
+  const out = []; let cur = '', q = false;
+  for(let i=0;i<line.length;i++){
+    const c = line[i];
+    if(q){ if(c==='"'){ if(line[i+1]==='"'){ cur+='"'; i++; } else q=false; } else cur+=c; }
+    else if(c==='"') q = true;
+    else if(c===','){ out.push(cur); cur=''; }
+    else cur += c;
+  }
+  out.push(cur); return out.map(s=>s.trim());
+}
+function openPaste(mode){
+  dpMode = mode; dpRows = null;
+  const scores = mode==='scores';
+  $('#dpTitle').textContent = scores ? '성적 붙여넣기로 가져오기' : '학생 명단 붙여넣기';
+  $('#dpHint').innerHTML = scores
+    ? `지금 고른 회차(<b>${esc(examOf($('#entryExam').value)?.name||'—')}</b>)에 들어갑니다.
+       구글 시트에서 필요한 열을 복사해 붙여넣고, 아래에서 어느 열이 무엇인지 지정하세요.
+       "88.2점", "3등급(65.2점)" 처럼 적혀 있어도 숫자만 알아서 뽑아냅니다.
+       <b>명단에 없는 이름은 자동으로 학생으로 등록됩니다.</b>`
+    : `이름 / 학교 / 학년 / 반 순서로 된 표를 붙여넣으세요. 열 순서는 아래에서 지정할 수 있습니다.`;
+  $('#dpText').value = ''; $('#dpMap').innerHTML = ''; $('#dpApply').disabled = true;
+  $('#dlgPaste').showModal();
+}
+$('#btnEntryPaste').addEventListener('click', ()=>{
+  if(!examOf($('#entryExam').value)) return toast('먼저 회차를 만들고 고르세요');
+  openPaste('scores');
+});
+$('#btnPasteStudents').addEventListener('click', ()=> openPaste('students'));
+$('#dpClose').addEventListener('click', ()=> $('#dlgPaste').close());
+
+$('#dpRead').addEventListener('click', ()=>{
+  const rows = splitRows($('#dpText').value);
+  if(!rows.length) return toast('붙여넣은 내용이 없습니다');
+  const hasHeader = $('#dpHeader').checked;
+  const header = hasHeader ? rows[0] : rows[0].map((_,i)=> '열 '+(i+1));
+  dpRows = hasHeader ? rows.slice(1) : rows;
+  if(!dpRows.length) return toast('제목 줄 말고는 내용이 없습니다');
+
+  const fields = dpMode==='scores'
+    ? [['name','이름',true],['raw','점수',true],['school','학교',false],['grade','학년',false],
+       ['avg','평균',false],['gradeNum','등급',false],['rank','석차',false],['memo','메모',false]]
+    : [['name','이름',true],['school','학교',false],['grade','학년',false],['klass','반',false]];
+
+  const guess = (key)=>{
+    const pat = {name:/이름|성명|학생/, raw:/점수|원점수|가채점/, school:/학교/, grade:/학년/,
+                 avg:/평균/, gradeNum:/등급/, rank:/석차|등수/, memo:/메모|비고/, klass:/반/}[key];
+    const i = header.findIndex(h=> pat && pat.test(String(h)));
+    return i;
+  };
+  $('#dpMap').innerHTML = `<div class="grid2">` + fields.map(([k,label,req])=>{
+    const gi = guess(k);
+    return `<div class="field" style="margin:0"><span>${label}${req?' <span style="color:var(--danger)">*</span>':''}</span>
+      <select data-map="${k}" style="width:100%">
+        <option value="">(사용 안 함)</option>
+        ${header.map((h,i)=>`<option value="${i}" ${i===gi?'selected':''}>${esc(String(h).slice(0,24))||'열 '+(i+1)}</option>`).join('')}
+      </select></div>`;
+  }).join('') + `</div>
+  <p class="hint" style="margin:10px 0 0">${dpRows.length}줄을 읽었습니다. 아래 미리보기를 확인하고 <b>가져오기</b>를 누르세요.</p>
+  <div class="tablewrap" style="max-height:150px; overflow:auto"><table><tbody>${
+    dpRows.slice(0,4).map(r=>`<tr>${r.slice(0,8).map(c=>`<td style="font-size:12px">${esc(String(c).slice(0,18))}</td>`).join('')}</tr>`).join('')
+  }</tbody></table></div>`;
+  $('#dpApply').disabled = false;
+});
+
+$('#dpApply').addEventListener('click', ()=>{
+  if(!dpRows) return;
+  const map = {}; $$('#dpMap [data-map]').forEach(s=>{ if(s.value!=='') map[s.dataset.map] = +s.value; });
+  if(map.name==null) return toast('이름 열을 지정해 주세요');
+  const cell = (r,k)=> map[k]==null ? '' : String(r[map[k]] ?? '').trim();
+
+  if(dpMode==='students'){
+    let added = 0;
+    dpRows.forEach(r=>{
+      const name = cell(r,'name'); if(!name) return;
+      const school = cell(r,'school'), grade = cell(r,'grade') || '고1';
+      if(S.students.some(s=> s.name===name && s.school===school && s.grade===grade)) return;
+      S.students.push({id:uid(), name, school, grade, klass:cell(r,'klass'), teacher:''});
+      added++;
+    });
+    save(); $('#dlgPaste').close(); renderStudents();
+    return toast(added ? `${added}명을 추가했습니다` : '새로 추가할 학생이 없었습니다');
+  }
+
+  const eid = $('#entryExam').value; const ex = examOf(eid);
+  if(!ex){ $('#dlgPaste').close(); return toast('회차를 찾지 못했습니다'); }
+  let hit = 0, newSt = 0, skipped = 0;
+  dpRows.forEach(r=>{
+    const name = cell(r,'name'); if(!name) return;
+    const school = cell(r,'school'), gradeTxt = cell(r,'grade');
+    let s = S.students.find(x=> x.name===name && (!school || x.school===school) && (!gradeTxt || x.grade===gradeTxt))
+         || S.students.find(x=> x.name===name && !school && !gradeTxt);
+    if(!s){
+      s = {id:uid(), name, school, grade:gradeTxt||'', klass:'', teacher:''};
+      S.students.push(s); newSt++;
+    }
+    const parsed = parseScoreGrade(cell(r,'raw'));
+    const raw = parsed.score!=null ? parsed.score : num(cell(r,'raw'));
+    const gnum = map.gradeNum!=null ? num(cell(r,'gradeNum')) : parsed.grade;
+    if(raw==null && gnum==null){ skipped++; return; }
+    setScore(s.id, eid, {
+      raw, grade:gnum, avg:map.avg!=null?num(cell(r,'avg')):undefined,
+      rank:map.rank!=null?num(cell(r,'rank')):undefined,
+      memo:map.memo!=null?(cell(r,'memo')||null):undefined
+    });
+    hit++;
+  });
+  save(); $('#dlgPaste').close(); renderEntry();
+  toast(`${hit}명 성적을 넣었습니다` + (newSt?` · 학생 ${newSt}명 새로 등록`:'') + (skipped?` · 숫자를 못 찾은 ${skipped}줄은 건너뜀`:''));
+});
+
+/* ───────── 설정 ───────── */
+function renderStorageWarn(){
+  const box = $('#storageWarn');
+  if(storageOk){ box.hidden = true; return; }
+  box.hidden = false;
+  box.innerHTML = `<b>⚠️ 이 환경에서는 브라우저 저장이 막혀 있습니다.</b><br>
+    입력한 성적이 <b>새로고침하면 사라집니다.</b> 파일을 더블클릭해 연 경우나 미리보기 창에서 자주 생깁니다.
+    크롬·엣지 같은 일반 브라우저에서 열거나 GitHub Pages에 올려서 쓰시고,
+    지금 작업한 내용이 있다면 먼저 <b>백업 파일 내려받기</b>를 눌러 저장해 두세요.`;
+}
+function renderConfig(){
+  renderStorageWarn();
+  $('#cfgAcademy').value = S.config.academy||'';
+  $('#cfgSign').value = S.config.sign||'';
+  $('#cfgAreaNaesin').value = S.config.areaNaesin||'';
+  $('#cfgAreaMock').value = S.config.areaMock||'';
+  $('#cfgSheetUrl').value = S.config.sheetUrl||'';
+  $('#cfgSheetKey').value = S.config.sheetKey||'';
+  $('#cfgPreStrong').value = (S.presets.strong||[]).join('\n');
+  $('#cfgPreWeak').value   = (S.presets.weak||[]).join('\n');
+  $('#cfgPrePlan').value   = (S.presets.plan||[]).join('\n');
+  const rows = Object.values(S.scores).reduce((a,o)=> a+Object.keys(o).length, 0);
+  $('#backupInfo').innerHTML = `지금 담긴 내용: 학생 ${S.students.length}명 · 회차 ${S.exams.length}개 · 성적 ${rows}건`
+    + (S.lastBackup ? `<br>마지막 백업 ${new Date(S.lastBackup).toLocaleString('ko-KR')}`
+                    : `<br><b style="color:var(--gold-deep)">아직 한 번도 백업하지 않았습니다.</b>`);
+  renderSyncInfo();
+}
+$('#btnSaveCfg').addEventListener('click', ()=>{
+  S.config.academy = $('#cfgAcademy').value.trim() || '[오름] 국어';
+  S.config.sign = $('#cfgSign').value.trim();
+  S.config.areaNaesin = $('#cfgAreaNaesin').value.trim();
+  S.config.areaMock = $('#cfgAreaMock').value.trim();
+  save(); renderConfig(); toast('설정을 저장했습니다');
+});
+$('#btnSavePresets').addEventListener('click', ()=>{
+  const lines = v => v.split('\n').map(s=>s.trim()).filter(Boolean);
+  S.presets.strong = lines($('#cfgPreStrong').value);
+  S.presets.weak   = lines($('#cfgPreWeak').value);
+  S.presets.plan   = lines($('#cfgPrePlan').value);
+  S.presetsEdited = true;   // 직접 고친 뒤에는 시트 값으로 되돌리지 않는다
+  save(); toast('프리셋을 저장했습니다');
+});
+
+function downloadBlob(name, text, type){
+  const blob = new Blob([text], {type:type||'application/json;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+$('#btnBackup').addEventListener('click', ()=>{
+  const d = new Date(), p = n => String(n).padStart(2,'0');
+  const stamp = `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
+  downloadBlob(`오름-성적백업-${stamp}.json`, JSON.stringify(S, null, 1));
+  S.lastBackup = new Date().toISOString(); save(); renderConfig();
+  toast('백업 파일을 내려받았습니다');
+});
+$('#btnSeed').addEventListener('click', ()=>{
+  const r = importSeed();
+  $('#seedInfo').innerHTML = r.exams
+    ? `회차 ${r.exams}개를 되살렸습니다.`
+    : '회차 틀과 프리셋이 이미 들어 있습니다 — 새로 넣을 것이 없었습니다.';
+  renderConfig();
+  toast(r.scores ? `성적 ${r.scores}건을 채웠습니다` : '새로 채울 것이 없었습니다');
+});
+$('#btnRestore').addEventListener('click', ()=> $('#restoreFile').click());
+$('#restoreFile').addEventListener('change', e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const fr = new FileReader();
+  fr.onload = ()=>{
+    try{
+      const d = JSON.parse(fr.result);
+      if(!d || !Array.isArray(d.students)) throw new Error('형식이 다릅니다');
+      if(!confirm(`백업을 불러오면 지금 화면의 내용은 사라지고 파일 내용으로 바뀝니다.\n\n파일 안: 학생 ${d.students.length}명 · 회차 ${(d.exams||[]).length}개\n계속할까요?`)) return;
+      S = Object.assign(structuredClone(DEFAULTS), d);
+      S.config = Object.assign(structuredClone(DEFAULTS.config), d.config||{});
+      S.presets = Object.assign(structuredClone(DEFAULTS.presets), d.presets||{});
+      save(); showPane('config'); toast('백업에서 되살렸습니다');
+    }catch(err){ toast('이 파일은 읽을 수 없습니다 — 백업 .json 파일인지 확인해 주세요'); }
+  };
+  fr.onerror = ()=> toast('파일을 읽지 못했습니다');
+  fr.readAsText(f, 'utf-8');
+  e.target.value = '';
+});
+$('#btnCsv').addEventListener('click', ()=>{
+  const q = v => { const s = String(v==null?'':v); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
+  const head = ['이름','학교','학년','반','회차','구분','날짜','원점수','만점','평균','등급','백분위','석차','전체인원','영역별','메모'];
+  const lines = [head.join(',')];
+  sortedExams().forEach(e=>{
+    S.students.slice().sort(byStudent).forEach(s=>{
+      const sc = scoreOf(s.id, e.id); if(!sc) return;
+      const areaTxt = sc.areas ? Object.entries(sc.areas).map(([k,v])=>k+':'+v).join(' / ') : '';
+      lines.push([s.name,s.school,s.grade,s.klass,e.name,e.type==='mock'?'모의고사':'내신',e.date,
+        sc.raw??'',e.full,sc.avg??'',sc.grade??'',sc.pct??'',sc.rank??'',sc.total??'',areaTxt,sc.memo??''].map(q).join(','));
+    });
+  });
+  downloadBlob('오름-성적.csv', '﻿'+lines.join('\n'), 'text/csv;charset=utf-8');
+  toast('CSV 를 내려받았습니다');
+});
+$('#btnWipe').addEventListener('click', ()=>{
+  if(!confirm('저장된 학생·회차·성적을 전부 지웁니다. 되돌릴 수 없습니다.\n백업 파일은 내려받으셨나요?')) return;
+  if(!confirm('정말 전부 지울까요?')) return;
+  S = structuredClone(DEFAULTS); save(); showPane('config'); toast('전부 지웠습니다');
+});
+
+/* 테마 */
+$$('[data-theme-set]').forEach(b=> b.addEventListener('click', ()=>{
+  const v = b.dataset.themeSet;
+  if(v) document.documentElement.setAttribute('data-theme', v);
+  else document.documentElement.removeAttribute('data-theme');
+  try{ v ? localStorage.setItem(THEME_KEY, v) : localStorage.removeItem(THEME_KEY); }catch(e){}
+  toast('화면 설정을 바꿨습니다');
+}));
+
+/* ───────── 구글 시트 (선택) ─────────
+   localStorage 가 1차 저장소이고 시트는 사본입니다.
+   원래 쓰시던 폼 응답 시트 두 개는 건드리지 않습니다 — 반드시 새 스프레드시트를 만들어 쓰세요. */
+const GS_CODE = `/**
+ * [오름] 국어 · 성적 추이 리포트 — 백업용 Apps Script
+ *
+ * ■ 배포 방법
+ *  1. 구글 드라이브에서 "새로 만들기 → Google 스프레드시트" 로 **빈 시트를 새로 만든다.**
+ *     (기존 폼 응답 시트에는 절대 붙이지 말 것. 이 코드는 시트를 통째로 덮어씁니다.)
+ *  2. 그 시트에서 확장 프로그램 → Apps Script 를 열고, 이 파일 내용을 전부 붙여넣는다.
+ *  3. 아래 WRITE_KEY 를 본인만 아는 값으로 바꾼다.
+ *  4. 오른쪽 위 "배포 → 새 배포" → 유형 "웹 앱"
+ *     - 실행 계정: 나
+ *     - 액세스 권한: 모든 사용자
+ *  5. 나오는 /exec 로 끝나는 주소를 사이트의 설정 탭 "웹앱 URL" 에 붙여넣고,
+ *     WRITE_KEY 와 같은 값을 "쓰기 키" 에 넣은 뒤 저장한다.
+ *  6. 코드를 고칠 때마다 "배포 → 배포 관리 → 수정 → 새 버전" 을 해야 반영된다.
+ */
+const WRITE_KEY = '여기를-바꾸세요';
+
+function doPost(e){
+  try{
+    const body = JSON.parse(e.postData.contents);
+    if(body.key !== WRITE_KEY) return out({ok:false, error:'쓰기 키가 다릅니다'});
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    writeSheet(ss, '학생', [['id','이름','학교','학년','반','담당']],
+      (body.students||[]).map(s=>[s.id,s.name,s.school,s.grade,s.klass,s.teacher]));
+    writeSheet(ss, '회차', [['id','이름','종류','날짜','만점','영역']],
+      (body.exams||[]).map(x=>[x.id,x.name,x.type,x.date,x.full,x.areas]));
+    writeSheet(ss, '성적', [['이름','학교','학년','회차','구분','날짜','원점수','만점','평균','등급','백분위','석차','전체인원','영역별','메모']],
+      body.rows||[]);
+    writeSheet(ss, '코멘트', [['이름','강점','문제점','개선·방학','소견','작성시각']], body.comments||[]);
+    return out({ok:true, rows:(body.rows||[]).length, at:new Date().toISOString()});
+  }catch(err){
+    return out({ok:false, error:String(err)});
+  }
+}
+function doGet(){ return out({ok:true, msg:'살아 있습니다'}); }
+
+function writeSheet(ss, name, header, rows){
+  let sh = ss.getSheetByName(name);
+  if(!sh) sh = ss.insertSheet(name);
+  sh.clear();
+  sh.getRange(1,1,1,header[0].length).setValues(header).setFontWeight('bold');
+  if(rows.length){
+    const w = header[0].length;
+    const fixed = rows.map(r=>{ const a = r.slice(0,w); while(a.length<w) a.push(''); return a; });
+    sh.getRange(2,1,fixed.length,w).setValues(fixed);
+  }
+  sh.setFrozenRows(1);
+}
+function out(obj){
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}`;
+
+function syncPayload(){
+  const rows = [];
+  sortedExams().forEach(e=>{
+    S.students.forEach(s=>{
+      const sc = scoreOf(s.id,e.id); if(!sc) return;
+      rows.push([s.name,s.school,s.grade,e.name,e.type==='mock'?'모의고사':'내신',e.date,
+        sc.raw??'',e.full,sc.avg??'',sc.grade??'',sc.pct??'',sc.rank??'',sc.total??'',
+        sc.areas?Object.entries(sc.areas).map(([k,v])=>k+':'+v).join(' / '):'', sc.memo??'']);
+    });
+  });
+  const comments = Object.entries(S.comments).map(([sid,c])=>{
+    const s = studentOf(sid); return [s?s.name:sid, c.strong||'', c.weak||'', c.plan||'', c.free||'', c.at||''];
+  });
+  return {
+    key:(S.config.sheetKey||'').trim(),
+    students:S.students.map(s=>({id:s.id,name:s.name,school:s.school,grade:s.grade,klass:s.klass,teacher:s.teacher})),
+    exams:sortedExams().map(e=>({id:e.id,name:e.name,type:e.type,date:e.date,full:e.full,areas:areasToStr(e.areas)})),
+    rows, comments
+  };
+}
+function renderSyncInfo(){
+  const el = $('#syncInfo'); if(!el) return;
+  const url = (S.config.sheetUrl||'').trim(), ls = S.lastSync;
+  if(!url){ el.innerHTML = '아직 연결하지 않았습니다. 쓰지 않아도 괜찮습니다 — 백업 파일만으로도 충분합니다.'; return; }
+  let s = `올릴 내용: 성적 ${syncPayload().rows.length}행`;
+  if(!(S.config.sheetKey||'').trim()) s += `<br><b style="color:var(--gold-deep)">쓰기 키가 비어 있습니다.</b>`;
+  if(ls && ls.ok) s += `<br>마지막 올리기 ${new Date(ls.at).toLocaleString('ko-KR')} — ${ls.rows}행`;
+  else if(ls && ls.ok===false) s += `<br><b style="color:var(--danger)">마지막 올리기 실패</b> — ${esc(ls.error||'')}`;
+  el.innerHTML = s;
+}
+$('#btnSaveSheet').addEventListener('click', ()=>{
+  const url = $('#cfgSheetUrl').value.trim();
+  if(url && !/^https:\/\/\S+$/.test(url)) return toast('웹앱 URL 은 https:// 로 시작해야 합니다');
+  S.config.sheetUrl = url; S.config.sheetKey = $('#cfgSheetKey').value.trim();
+  save(); renderSyncInfo();
+  toast(url && !/\/exec$/.test(url) ? '저장했습니다 — 다만 주소가 /exec 로 끝나지 않습니다' : '저장했습니다');
+});
+let syncing = false;
+$('#btnSyncUp').addEventListener('click', async ()=>{
+  const url = (S.config.sheetUrl||'').trim();
+  if(!url) return toast('먼저 웹앱 URL 을 저장하세요');
+  if(!(S.config.sheetKey||'').trim()) return toast('먼저 쓰기 키를 저장하세요');
+  if(syncing) return;
+  syncing = true; $('#btnSyncUp').disabled = true; $('#btnSyncUp').textContent = '올리는 중…';
+  try{
+    const res = await fetch(url, {
+      method:'POST',
+      // Apps Script 는 CORS 사전요청(OPTIONS)에 답하지 않으므로 text/plain 으로 단순 요청을 보낸다.
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify(syncPayload()), redirect:'follow'
+    });
+    const text = await res.text();
+    let data; try{ data = JSON.parse(text); }
+    catch(e){ throw new Error(`시트가 JSON 대신 다른 응답을 보냈습니다 (HTTP ${res.status}). 배포 권한을 "모든 사용자"로 했는지, 주소가 /exec 로 끝나는지 확인하세요.`); }
+    if(!data.ok) throw new Error(data.error||'시트가 거절했습니다');
+    S.lastSync = {at:new Date().toISOString(), ok:true, rows:data.rows};
+    save(); renderSyncInfo(); toast(`시트에 ${data.rows}행 올렸습니다`);
+  }catch(err){
+    const raw = String(err && err.message || err);
+    const msg = /Failed to fetch|NetworkError|load failed/i.test(raw)
+      ? '시트에 연결하지 못했습니다. 인터넷 연결과 배포 권한("모든 사용자")을 확인해 주세요.' : raw;
+    S.lastSync = {at:new Date().toISOString(), ok:false, error:msg};
+    save(); renderSyncInfo(); toast('시트 올리기 실패 — 성적은 이 브라우저에 그대로 있습니다');
+  }finally{
+    syncing = false; $('#btnSyncUp').disabled = false; $('#btnSyncUp').textContent = '시트로 올리기';
+  }
+});
+$('#btnCopyGs').addEventListener('click', ()=>{ $('#gsCode').value = GS_CODE; $('#dlgGs').showModal(); });
+$('#gsClose').addEventListener('click', ()=> $('#dlgGs').close());
+$('#gsCopy').addEventListener('click', async ()=>{
+  const ta = $('#gsCode');
+  try{ await navigator.clipboard.writeText(ta.value); toast('복사했습니다'); }
+  catch(e){ ta.removeAttribute('readonly'); ta.select(); document.execCommand('copy'); ta.setAttribute('readonly',''); toast('복사했습니다'); }
+});
+
+/* ───────── 시작 ───────── */
+function boot(){
+  try{ const t = localStorage.getItem(THEME_KEY); if(t) document.documentElement.setAttribute('data-theme', t); }catch(e){}
+  load();
+  // 처음 여는 경우에만 예담T 명단·성적을 자동으로 채운다 (쓰던 자료가 있으면 건드리지 않음)
+  let seeded = false;
+  if(!S.students.length && !S.exams.length){ importSeed(); seeded = true; }
+  // 이미 쓰고 계시던 브라우저의 옛 점수를 바로잡는다 (새로 채운 경우엔 이미 맞는 값이라 0건)
+  const fixed = applyFixes();
+  const rows = Object.values(S.scores).reduce((a,o)=> a+Object.keys(o).length, 0);
+  $('#headSub').innerHTML = `학생 ${S.students.length}명 · 회차 ${S.exams.length}개 · 성적 ${rows}건`;
+  showPane(!S.students.length ? 'manage' : 'entry');
+  if(seeded) setTimeout(()=> toast('설정 · 백업 탭에서 백업 파일을 불러오면 명단과 성적이 들어옵니다'), 500);
+  else if(fixed) setTimeout(()=> toast(`점수 ${fixed}칸을 바로잡았습니다`), 400);
+  $('#pane-config').hidden = true;
+  if(!storageOk){
+    renderStorageWarn();
+    toast('이 환경에서는 저장이 막혀 있습니다 — 설정 탭을 확인하세요');
+  }
+}
+// 화면 어디서든 바뀌면 머리글 숫자를 다시 센다
+const _save = save;
+save = function(){ const r = _save();
+  const rows = Object.values(S.scores).reduce((a,o)=> a+Object.keys(o).length, 0);
+  const el = $('#headSub'); if(el) el.innerHTML = `학생 ${S.students.length}명 · 회차 ${S.exams.length}개 · 성적 ${rows}건`;
+  return r; };
+boot();
+</script>
+</body>
+</html>
