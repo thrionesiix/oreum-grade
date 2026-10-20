@@ -235,6 +235,7 @@ dialog .hint{color:var(--ink-soft); font-size:12.5px; margin:0 0 14px; line-heig
 .sheet.dense .rp-cmt .rp-box{font-size:10.5px; line-height:1.5}
 .sheet.dense .rp-foot{margin-top:8px; padding-top:5px}
 
+#repOut.two-up .sheet + .sheet{margin-top:26px}
 svg.chart{display:block; width:100%; height:auto; overflow:visible}
 .legend{display:flex; gap:11px; flex-wrap:wrap; font-size:10px; color:var(--paper-soft); margin-top:2px}
 .legend i{display:inline-block; width:15px; height:0; border-top:2px solid currentColor; vertical-align:middle; margin-right:4px}
@@ -282,6 +283,8 @@ svg.chart{display:block; width:100%; height:auto; overflow:visible}
   }
   .sheet th{background:#f2f4f1 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact}
   .rp-sec,.rp-box,table,tr{break-inside:avoid; page-break-inside:avoid}
+  /* '따로 2장 인쇄' — 두 번째 장부터 새 페이지에서 시작 */
+  #repOut.two-up .sheet + .sheet{break-before:page; page-break-before:always}
   svg{max-width:100%}
 }
 </style>
@@ -326,20 +329,23 @@ svg.chart{display:block; width:100%; height:auto; overflow:visible}
 <section id="pane-report" hidden>
   <div class="card noprint">
     <h2>개인 리포트</h2>
-    <p class="hint">학부모 상담용 A4 1장입니다. <b>인쇄</b>를 누르면 아래 리포트만 종이로 나갑니다.</p>
+    <p class="hint">학부모 상담용 A4 1장입니다. <b>아래에 보이는 그대로</b> 종이에 나갑니다 —
+      학교 시험만 뽑으려면 보기를 <b>학교 시험(내신)</b>으로 바꾸고 인쇄하세요.</p>
     <div class="row">
       <select id="repStudent" style="min-width:200px"></select>
-      <select id="repType" title="내신과 모의고사는 점수의 성격이 달라 따로 볼 수 있습니다">
-        <option value="">내신 + 모의고사</option>
-        <option value="naesin">내신만</option>
-        <option value="mock">모의고사만</option>
+      <select id="repType" title="학교 시험과 학력평가는 점수의 성격이 달라 따로 볼 수 있습니다">
+        <option value="">학교 시험 + 학력평가</option>
+        <option value="naesin">학교 시험(내신)만</option>
+        <option value="mock">학력평가(모의고사)만</option>
       </select>
       <label class="row" style="gap:5px; font-size:13px"><input type="checkbox" id="repShowClass" checked> 반 평균 함께 보기</label>
       <label class="row" style="gap:5px; font-size:13px"><input type="checkbox" id="repShowArea" checked> 영역별 보기</label>
       <span class="spacer"></span>
       <button class="btn" id="btnRepComment">상담 코멘트 쓰기</button>
       <button class="btn primary" id="btnPrint">인쇄 / PDF</button>
+      <button class="btn gold" id="btnPrintBoth" title="학교 시험 1장 + 학력평가 1장을 한 번에">따로 2장 인쇄</button>
     </div>
+    <p class="hint" id="printHintLine" style="margin:10px 0 0"></p>
   </div>
   <div id="repOut"></div>
 </section>
@@ -1065,7 +1071,7 @@ function histChart(values, opts){
 }
 
 /* ───────── 개인 리포트 ───────── */
-function renderReport(){
+function renderReportInner(){
   fillStudentSelect($('#repStudent'));
   const sid = $('#repStudent').value;
   const out = $('#repOut');
@@ -1237,6 +1243,12 @@ function renderReport(){
     </div>
   </div>`;
 }
+/** 리포트를 그리고, 인쇄 단추 문구도 현재 보기에 맞춘다. */
+function renderReport(){
+  renderReportInner();
+  try{ syncPrintUi(); }catch(e){}
+}
+
 /** 그래프 가로축에 들어갈 짧은 회차 이름. 괄호 설명은 떼고 흔한 말은 줄인다.
     "2026 1차고사 (1학기 중간)" → "1차고사", "2026 3월 학력평가" → "3월 학평" */
 function shortName(n){
@@ -1282,7 +1294,62 @@ $('#repStudent').addEventListener('change', renderReport);
 $('#repType').addEventListener('change', renderReport);
 $('#repShowClass').addEventListener('change', renderReport);
 $('#repShowArea').addEventListener('change', renderReport);
+/* ───────── 인쇄 ─────────
+   화면에 보이는 .sheet 가 그대로 종이에 나갑니다.
+   "따로 2장" 은 학교 시험용 한 장과 학력평가용 한 장을 잠깐 나란히 만들어 찍고 되돌립니다. */
+const TYPE_LABEL = {'':'학교 시험 + 학력평가', naesin:'학교 시험', mock:'학력평가'};
+
+/** 지금 고른 학생이 어떤 시험을 가지고 있는지 */
+function availTypes(sid){
+  const all = seriesOf(sid);
+  return {naesin: all.some(x=>x.exam.type==='naesin'), mock: all.some(x=>x.exam.type==='mock')};
+}
+function syncPrintUi(){
+  const sid = $('#repStudent').value, t = $('#repType').value;
+  const btn = $('#btnPrint'), both = $('#btnPrintBoth'), line = $('#printHintLine');
+  if(!sid || !studentOf(sid)){ if(line) line.textContent=''; return; }
+  const a = availTypes(sid);
+  btn.textContent = t ? `${TYPE_LABEL[t]}만 인쇄` : '인쇄 / PDF';
+  const canBoth = a.naesin && a.mock;
+  both.disabled = !canBoth;
+  both.title = canBoth ? '학교 시험 1장 + 학력평가 1장을 한 번에'
+                       : '이 학생은 한쪽 기록만 있어 2장으로 나눌 수 없습니다';
+  const s = studentOf(sid);
+  line.innerHTML = canBoth
+    ? `${esc(s.name)} 학생은 학교 시험과 학력평가가 모두 있습니다. <b>따로 2장 인쇄</b>를 누르면 각각 A4 한 장씩 나갑니다.`
+    : a.naesin ? `${esc(s.name)} 학생은 <b>학교 시험 기록만</b> 있습니다.`
+    : a.mock   ? `${esc(s.name)} 학생은 <b>학력평가 기록만</b> 있습니다.` : '';
+}
+
 $('#btnPrint').addEventListener('click', ()=> window.print());
+
+let printingBoth = false;
+$('#btnPrintBoth').addEventListener('click', ()=>{
+  const sid = $('#repStudent').value; if(!sid || printingBoth) return;
+  const a = availTypes(sid);
+  if(!(a.naesin && a.mock)) return toast('이 학생은 한쪽 기록만 있어 2장으로 나눌 수 없습니다');
+
+  printingBoth = true;
+  const sel = $('#repType'), keep = sel.value, out = $('#repOut');
+  // 두 보기를 차례로 그려서 HTML 을 모은다 (id 는 중복되지 않게 떼어 낸다)
+  const parts = [];
+  for(const t of ['naesin','mock']){
+    sel.value = t; renderReport();
+    parts.push(out.innerHTML.replace(/\sid="repSheet"/,' data-sheet="'+t+'"'));
+  }
+  out.innerHTML = parts.join('');
+  out.classList.add('two-up');
+
+  const restore = ()=>{
+    if(!printingBoth) return;
+    printingBoth = false;
+    out.classList.remove('two-up');
+    sel.value = keep; renderReport();
+    window.removeEventListener('afterprint', restore);
+  };
+  window.addEventListener('afterprint', restore);
+  setTimeout(()=>{ window.print(); setTimeout(restore, 1200); }, 60);
+});
 
 $('#btnRepComment').addEventListener('click', ()=>{
   const sid = $('#repStudent').value, s = studentOf(sid); if(!s) return toast('학생을 먼저 고르세요');
